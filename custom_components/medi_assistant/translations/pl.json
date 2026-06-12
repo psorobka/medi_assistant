@@ -1,0 +1,98 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Medicover — logowanie",
+        "data": {
+          "username": "Login (e-mail)",
+          "password": "Hasło"
+        }
+      },
+      "mfa": {
+        "title": "Kod weryfikacyjny (MFA)",
+        "description": "Wpisz kod weryfikacyjny wysłany przez Medicover (SMS lub e-mail).",
+        "data": {
+          "mfa_code": "Kod weryfikacyjny"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Ponowne logowanie",
+        "description": "Sesja wygasła — zaloguj się ponownie.",
+        "data": {
+          "username": "Login (e-mail)",
+          "password": "Hasło"
+        }
+      },
+      "reauth_mfa": {
+        "title": "Kod weryfikacyjny (MFA) — ponowne logowanie",
+        "description": "Wpisz kod weryfikacyjny wysłany przez Medicover (SMS lub e-mail).",
+        "data": {
+          "mfa_code": "Kod weryfikacyjny"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "Błędny login lub hasło",
+      "invalid_mfa": "Błędny lub wygasły kod weryfikacyjny",
+      "cannot_connect": "Nie można połączyć się z Medicover"
+    },
+    "abort": {
+      "already_configured": "To konto jest już skonfigurowane",
+      "reauth_successful": "Logowanie zakończone sukcesem"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Ustawienia Medicover",
+        "data": {
+          "scan_interval": "Interwał odświeżania (minuty)"
+        }
+      }
+    }
+  },
+  "config_subentries": {
+    "search": {
+      "initiate_flow": {
+        "user": "Dodaj szukajkę"
+      },
+      "entry_type": "Szukajka",
+      "step": {
+        "user": {
+          "title": "Szukajka — region",
+          "data": {
+            "region_id": "Region"
+          }
+        },
+        "specialty": {
+          "title": "Szukajka — specjalność",
+          "data": {
+            "specialty_id": "Specjalność"
+          }
+        },
+        "details": {
+          "title": "Szczegóły szukajki (opcjonalne)",
+          "data": {
+            "clinic_id": "Klinika",
+            "doctor_id": "Lekarz",
+            "language_id": "Język wizyty",
+            "date_from": "Szukaj od daty",
+            "date_to": "Szukaj do daty",
+            "notify_target": "Powiadomienie (encja lub usługa notify)"
+          }
+        }
+      },
+      "abort": {
+        "cannot_load_filters": "Nie można załadować listy regionów — odśwież dane konta",
+        "reconfigure_successful": "Szukajka zaktualizowana"
+      }
+    }
+  },
+  "entity": {
+    "button": {
+      "refresh_data": {
+        "name": "Odśwież dane Medicover"
+      }
+    }
+  }
+}

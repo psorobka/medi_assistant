@@ -1,0 +1,98 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Medicover — sign in",
+        "data": {
+          "username": "Username (e-mail)",
+          "password": "Password"
+        }
+      },
+      "mfa": {
+        "title": "Verification code (MFA)",
+        "description": "Enter the verification code Medicover sent you (SMS or email).",
+        "data": {
+          "mfa_code": "Verification code"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Re-authenticate",
+        "description": "Your session has expired — please sign in again.",
+        "data": {
+          "username": "Username (e-mail)",
+          "password": "Password"
+        }
+      },
+      "reauth_mfa": {
+        "title": "Verification code (MFA) — re-authentication",
+        "description": "Enter the verification code Medicover sent you (SMS or email).",
+        "data": {
+          "mfa_code": "Verification code"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "Invalid username or password",
+      "invalid_mfa": "Invalid or expired verification code",
+      "cannot_connect": "Cannot connect to Medicover"
+    },
+    "abort": {
+      "already_configured": "This account is already configured",
+      "reauth_successful": "Re-authentication successful"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Medicover settings",
+        "data": {
+          "scan_interval": "Refresh interval (minutes)"
+        }
+      }
+    }
+  },
+  "config_subentries": {
+    "search": {
+      "initiate_flow": {
+        "user": "Add search"
+      },
+      "entry_type": "Search",
+      "step": {
+        "user": {
+          "title": "Search — region",
+          "data": {
+            "region_id": "Region"
+          }
+        },
+        "specialty": {
+          "title": "Search — specialty",
+          "data": {
+            "specialty_id": "Specialty"
+          }
+        },
+        "details": {
+          "title": "Search details (optional)",
+          "data": {
+            "clinic_id": "Clinic",
+            "doctor_id": "Doctor",
+            "language_id": "Visit language",
+            "date_from": "Search from date",
+            "date_to": "Search until date",
+            "notify_target": "Notification (notify entity or service)"
+          }
+        }
+      },
+      "abort": {
+        "cannot_load_filters": "Cannot load region list — refresh account data first",
+        "reconfigure_successful": "Search updated"
+      }
+    }
+  },
+  "entity": {
+    "button": {
+      "refresh_data": {
+        "name": "Refresh Medicover data"
+      }
+    }
+  }
+}

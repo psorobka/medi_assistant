@@ -1,0 +1,18 @@
+{
+  "items": [
+    {
+      "appointmentDate": "2026-07-01T10:00:00",
+      "clinic": {"id": 100, "name": "Klinika Centrum"},
+      "doctor": {"id": 1, "name": "dr Jan Nowak"},
+      "specialty": {"id": 9, "name": "Kardiolog"},
+      "doctorLanguages": [{"id": 4, "name": "Polski"}]
+    },
+    {
+      "appointmentDate": "2026-07-02T14:30:00",
+      "clinic": {"id": 101, "name": "Klinika Wola"},
+      "doctor": {"id": 2, "name": "dr Anna Wiśniewska"},
+      "specialty": {"id": 9, "name": "Kardiolog"},
+      "doctorLanguages": [{"id": 4, "name": "Polski"}, {"id": 6, "name": "Angielski"}]
+    }
+  ]
+}

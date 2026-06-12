@@ -1,0 +1,18 @@
+{
+  "regions": [
+    {"id": 204, "value": "Warszawa"},
+    {"id": 205, "value": "Kraków"}
+  ],
+  "specialties": [
+    {"id": 9, "value": "Kardiolog"},
+    {"id": 14, "value": "Dermatolog"}
+  ],
+  "clinics": [
+    {"id": 100, "value": "Klinika Centrum"},
+    {"id": 101, "value": "Klinika Wola"}
+  ],
+  "doctors": [
+    {"id": 1, "value": "dr Jan Nowak"},
+    {"id": 2, "value": "dr Anna Wiśniewska"}
+  ]
+}
