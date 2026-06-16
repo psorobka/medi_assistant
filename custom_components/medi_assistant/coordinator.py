@@ -6,14 +6,17 @@ from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+from homeassistant.core import Event, HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .const import (
+    ACTION_DELETE_PREFIX,
+    ACTION_SNOOZE_PREFIX,
     CONF_NOTIFY_TARGET,
     CONF_SCAN_INTERVAL,
     DEFAULT_SCAN_INTERVAL,
+    SNOOZE_SECONDS,
     SUBENTRY_TYPE_SEARCH,
 )
 from .exceptions import ApiError, AuthError, InvalidGrant, MfaRequired
@@ -145,6 +148,14 @@ class MedicoverCoordinator(DataUpdateCoordinator[dict[str, list[dict[str, Any]]]
         """
         seen = self._filters_store.get_seen_slots(subentry.subentry_id)
         current = {_slot_key(s) for s in slots}
+
+        # Snoozed: stay silent but mark current slots as seen, so when the
+        # snooze expires only genuinely new slots are announced (no backlog).
+        if int(time.time()) < self._filters_store.get_snoozed_until(subentry.subentry_id):
+            if current != seen:
+                await self._filters_store.async_set_seen_slots(subentry.subentry_id, current)
+            return
+
         new_keys = current - seen
         if new_keys:
             new_slots = [s for s in slots if _slot_key(s) in new_keys]
@@ -176,11 +187,22 @@ class MedicoverCoordinator(DataUpdateCoordinator[dict[str, list[dict[str, Any]]]
         )
         try:
             if self.hass.states.get(target) is not None:
-                # Modern notify entity.
+                # Modern notify entity. Attach actionable buttons (rendered by
+                # the mobile_app companion; ignored by other notify entities).
+                base = f"{self._entry.entry_id}__{subentry.subentry_id}"
+                actions = [
+                    {"action": f"{ACTION_SNOOZE_PREFIX}__{base}", "title": "Drzemka (24h)"},
+                    {"action": f"{ACTION_DELETE_PREFIX}__{base}", "title": "Usuń", "destructive": True},
+                ]
                 await self.hass.services.async_call(
                     "notify",
                     "send_message",
-                    {"entity_id": target, "title": title, "message": message},
+                    {
+                        "entity_id": target,
+                        "title": title,
+                        "message": message,
+                        "data": {"actions": actions},
+                    },
                     blocking=False,
                 )
             else:
@@ -199,6 +221,35 @@ class MedicoverCoordinator(DataUpdateCoordinator[dict[str, list[dict[str, Any]]]
                 subentry.title,
                 err,
             )
+
+    async def async_handle_notification_action(self, event: Event) -> None:
+        """Handle a tap on a notification action button (Drzemka / Usuń).
+
+        The action id encodes the account and search: '<PREFIX>__<entry>__<sub>'.
+        The event is global, so we ignore actions for other accounts/searches.
+        """
+        action = event.data.get("action", "")
+        parts = action.split("__")
+        if len(parts) != 3:
+            return
+        prefix, entry_id, subentry_id = parts
+        if entry_id != self._entry.entry_id:
+            return
+        if subentry_id not in self._entry.subentries:
+            return
+
+        if prefix == ACTION_SNOOZE_PREFIX:
+            until = int(time.time()) + SNOOZE_SECONDS
+            await self._filters_store.async_set_snooze(subentry_id, until)
+            _LOGGER.info(
+                "Snoozed search '%s' for 24h via notification action",
+                self._entry.subentries[subentry_id].title,
+            )
+        elif prefix == ACTION_DELETE_PREFIX:
+            title = self._entry.subentries[subentry_id].title
+            await self._filters_store.async_clear_subentry_state(subentry_id)
+            self.hass.config_entries.async_remove_subentry(self._entry, subentry_id)
+            _LOGGER.info("Deleted search '%s' via notification action", title)
 
 
 def _slot_key(slot: dict[str, Any]) -> str:

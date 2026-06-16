@@ -17,6 +17,7 @@ from .const import (
     STORE_KEY_REGION_SPECIALTIES,
     STORE_KEY_REGIONS,
     STORE_KEY_SEEN_SLOTS,
+    STORE_KEY_SNOOZE,
     STORE_KEY_SPECIALTIES,
 )
 
@@ -126,6 +127,23 @@ class FiltersStore:
 
     async def async_set_seen_slots(self, subentry_id: str, keys: set[str]) -> None:
         self._data.setdefault(STORE_KEY_SEEN_SLOTS, {})[subentry_id] = sorted(keys)
+        await self.async_save()
+
+    # ------------------------------------------------------------------
+    # Snooze (per search) — mutes notifications until an epoch timestamp.
+    # ------------------------------------------------------------------
+
+    def get_snoozed_until(self, subentry_id: str) -> int:
+        return self._data.get(STORE_KEY_SNOOZE, {}).get(subentry_id, 0)
+
+    async def async_set_snooze(self, subentry_id: str, until: int) -> None:
+        self._data.setdefault(STORE_KEY_SNOOZE, {})[subentry_id] = until
+        await self.async_save()
+
+    async def async_clear_subentry_state(self, subentry_id: str) -> None:
+        """Drop per-search state (seen slots + snooze) when a search is deleted."""
+        for key in (STORE_KEY_SEEN_SLOTS, STORE_KEY_SNOOZE):
+            self._data.get(key, {}).pop(subentry_id, None)
         await self.async_save()
 
     def get_clinics(self, region: int, specialty: list[int]) -> list[dict[str, Any]]:

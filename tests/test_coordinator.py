@@ -4,9 +4,11 @@ from __future__ import annotations
 from types import MappingProxyType
 from unittest.mock import AsyncMock, MagicMock
 
+import time
+
 import pytest
 from homeassistant.config_entries import ConfigSubentry
-from homeassistant.core import HomeAssistant
+from homeassistant.core import Event, HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.update_coordinator import UpdateFailed
 from pytest_homeassistant_custom_component.common import (
@@ -15,8 +17,12 @@ from pytest_homeassistant_custom_component.common import (
 )
 
 from custom_components.medi_assistant.const import (
+    ACTION_DELETE_PREFIX,
+    ACTION_SNOOZE_PREFIX,
     CONF_NOTIFY_TARGET,
     DOMAIN,
+    NOTIFY_ACTION_EVENT,
+    SNOOZE_SECONDS,
     SUBENTRY_TYPE_SEARCH,
 )
 from custom_components.medi_assistant.coordinator import MedicoverCoordinator
@@ -49,11 +55,16 @@ def _add_subentry(
     return subentry
 
 
-def _make_filters_store(seen: set[str] | None = None) -> MagicMock:
-    """Mock FiltersStore exposing the seen-slots API used by notifications."""
+def _make_filters_store(
+    seen: set[str] | None = None, snoozed_until: int = 0
+) -> MagicMock:
+    """Mock FiltersStore exposing the seen-slots / snooze API used by notifications."""
     fs = MagicMock()
     fs.get_seen_slots = MagicMock(return_value=set(seen or set()))
     fs.async_set_seen_slots = AsyncMock()
+    fs.get_snoozed_until = MagicMock(return_value=snoozed_until)
+    fs.async_set_snooze = AsyncMock()
+    fs.async_clear_subentry_state = AsyncMock()
     return fs
 
 
@@ -119,12 +130,12 @@ async def test_coordinator_api_error_raises_update_failed(hass: HomeAssistant):
 _SLOT_KEYS = {"2026-07-01T10:00:00|1|100", "2026-07-02T14:30:00|2|101"}
 
 
-async def _run_poll(hass, mock_client, subentry, seen=None):
+async def _run_poll(hass, mock_client, subentry, seen=None, snoozed_until=0):
     """Build a coordinator with a seen-slots baseline, run one poll. Return the store."""
     entry = MockConfigEntry(domain=DOMAIN, data=MOCK_ENTRY_DATA, title="Jan Kowalski")
     entry.add_to_hass(hass)
     object.__setattr__(entry, "subentries", MappingProxyType({subentry.subentry_id: subentry}))
-    fs = _make_filters_store(seen)
+    fs = _make_filters_store(seen, snoozed_until)
     coordinator = MedicoverCoordinator(hass, entry, mock_client, fs)
     await coordinator._async_update_data()
     await hass.async_block_till_done()
@@ -217,3 +228,158 @@ async def test_coordinator_notify_failure_does_not_break_poll(hass, mock_client)
     result = await coordinator._async_update_data()  # must not raise
 
     assert sub.subentry_id in result
+
+
+# ---------------------------------------------------------------------------
+# Snooze: a snoozed search stays silent but marks slots as seen
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_snooze_suppresses_notify_but_marks_seen(hass, mock_client):
+    """While snoozed: no notification, but current slots are recorded as seen."""
+    hass.states.async_set("notify.phone", "idle")
+    calls = async_mock_service(hass, "notify", "send_message")
+    sub = _add_subentry(MockConfigEntry(domain=DOMAIN), notify_target="notify.phone")
+
+    future = int(time.time()) + 3600
+    fs = await _run_poll(hass, mock_client, sub, seen=set(), snoozed_until=future)
+
+    assert len(calls) == 0
+    # Slots seen during the snooze are marked seen, so they aren't replayed later.
+    fs.async_set_seen_slots.assert_awaited_once()
+    assert fs.async_set_seen_slots.call_args[0][1] == _SLOT_KEYS
+
+
+@pytest.mark.asyncio
+async def test_expired_snooze_notifies_again(hass, mock_client):
+    """A snooze in the past behaves as if absent → unseen slots are announced."""
+    hass.states.async_set("notify.phone", "idle")
+    calls = async_mock_service(hass, "notify", "send_message")
+    sub = _add_subentry(MockConfigEntry(domain=DOMAIN), notify_target="notify.phone")
+
+    past = int(time.time()) - 3600
+    await _run_poll(hass, mock_client, sub, seen=set(), snoozed_until=past)
+
+    assert len(calls) == 1
+
+
+@pytest.mark.asyncio
+async def test_notify_payload_includes_actions(hass, mock_client):
+    """Modern notify entity gets Drzemka/Usuń action buttons; legacy service does not."""
+    hass.states.async_set("notify.phone", "idle")
+    entity_calls = async_mock_service(hass, "notify", "send_message")
+    legacy_calls = async_mock_service(hass, "notify", "telegram")
+    entry = MockConfigEntry(domain=DOMAIN, data=MOCK_ENTRY_DATA, title="Jan Kowalski")
+    entry.add_to_hass(hass)
+    sub = _add_subentry(entry, notify_target=["notify.phone", "notify.telegram"])
+
+    fs = _make_filters_store(set())
+    coordinator = MedicoverCoordinator(hass, entry, mock_client, fs)
+    await coordinator._async_update_data()
+    await hass.async_block_till_done()
+
+    actions = entity_calls[0].data["data"]["actions"]
+    assert [a["title"] for a in actions] == ["Drzemka (24h)", "Usuń"]
+    base = f"{entry.entry_id}__{sub.subentry_id}"
+    assert actions[0]["action"] == f"{ACTION_SNOOZE_PREFIX}__{base}"
+    assert actions[1]["action"] == f"{ACTION_DELETE_PREFIX}__{base}"
+    assert actions[1]["destructive"] is True
+    # Legacy service path carries no action payload.
+    assert "data" not in legacy_calls[0].data
+
+
+# ---------------------------------------------------------------------------
+# Notification action handler (Drzemka / Usuń)
+# ---------------------------------------------------------------------------
+
+
+def _build_coordinator(hass, mock_client, fs=None):
+    """Coordinator + entry with one subentry, ready for action-handler tests."""
+    entry = MockConfigEntry(domain=DOMAIN, data=MOCK_ENTRY_DATA, title="Jan Kowalski")
+    entry.add_to_hass(hass)
+    sub = _add_subentry(entry)
+    coordinator = MedicoverCoordinator(
+        hass, entry, mock_client, fs or _make_filters_store()
+    )
+    return coordinator, entry, sub
+
+
+def _action_event(action: str) -> Event:
+    return Event(NOTIFY_ACTION_EVENT, {"action": action})
+
+
+@pytest.mark.asyncio
+async def test_snooze_action_sets_snooze(hass, mock_client):
+    """Tapping Drzemka snoozes the search ~24h ahead."""
+    fs = _make_filters_store()
+    coordinator, entry, sub = _build_coordinator(hass, mock_client, fs)
+
+    before = int(time.time())
+    await coordinator.async_handle_notification_action(
+        _action_event(f"{ACTION_SNOOZE_PREFIX}__{entry.entry_id}__{sub.subentry_id}")
+    )
+
+    fs.async_set_snooze.assert_awaited_once()
+    sub_id, until = fs.async_set_snooze.call_args[0]
+    assert sub_id == sub.subentry_id
+    assert before + SNOOZE_SECONDS <= until <= int(time.time()) + SNOOZE_SECONDS
+
+
+@pytest.mark.asyncio
+async def test_delete_action_removes_subentry(hass, mock_client):
+    """Tapping Usuń clears per-search state and removes the subentry."""
+    fs = _make_filters_store()
+    coordinator, entry, sub = _build_coordinator(hass, mock_client, fs)
+    hass.config_entries.async_remove_subentry = MagicMock()
+
+    await coordinator.async_handle_notification_action(
+        _action_event(f"{ACTION_DELETE_PREFIX}__{entry.entry_id}__{sub.subentry_id}")
+    )
+
+    fs.async_clear_subentry_state.assert_awaited_once_with(sub.subentry_id)
+    hass.config_entries.async_remove_subentry.assert_called_once_with(
+        entry, sub.subentry_id
+    )
+
+
+@pytest.mark.asyncio
+async def test_action_for_other_entry_is_ignored(hass, mock_client):
+    """An action targeting a different account is a no-op."""
+    fs = _make_filters_store()
+    coordinator, entry, sub = _build_coordinator(hass, mock_client, fs)
+    hass.config_entries.async_remove_subentry = MagicMock()
+
+    await coordinator.async_handle_notification_action(
+        _action_event(f"{ACTION_SNOOZE_PREFIX}__other-entry__{sub.subentry_id}")
+    )
+
+    fs.async_set_snooze.assert_not_called()
+    hass.config_entries.async_remove_subentry.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_action_for_unknown_subentry_is_ignored(hass, mock_client):
+    """An action for a subentry that no longer exists is a no-op."""
+    fs = _make_filters_store()
+    coordinator, entry, sub = _build_coordinator(hass, mock_client, fs)
+    hass.config_entries.async_remove_subentry = MagicMock()
+
+    await coordinator.async_handle_notification_action(
+        _action_event(f"{ACTION_DELETE_PREFIX}__{entry.entry_id}__missing-sub")
+    )
+
+    fs.async_clear_subentry_state.assert_not_called()
+    hass.config_entries.async_remove_subentry.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_malformed_action_is_ignored(hass, mock_client):
+    """An action id that doesn't match the expected shape is a no-op."""
+    fs = _make_filters_store()
+    coordinator, entry, sub = _build_coordinator(hass, mock_client, fs)
+
+    await coordinator.async_handle_notification_action(_action_event("SOMETHING_ELSE"))
+
+    fs.async_set_snooze.assert_not_called()
+    fs.async_clear_subentry_state.assert_not_called()

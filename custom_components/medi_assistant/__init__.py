@@ -20,6 +20,7 @@ from .const import (
     DEFAULT_SCAN_INTERVAL,
     ENTRY_DEVICE_ID,
     ENTRY_DEVICE_UA,
+    NOTIFY_ACTION_EVENT,
     SUBENTRY_TYPE_SEARCH,
 )
 from .coordinator import MedicoverCoordinator
@@ -123,6 +124,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: MedicoverConfigEntry) ->
     keepalive.start()
     entry.async_on_unload(keepalive.stop)
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
+
+    # Listen for taps on notification action buttons (Drzemka / Usuń). The
+    # event is global; the handler ignores actions for other accounts.
+    entry.async_on_unload(
+        hass.bus.async_listen(
+            NOTIFY_ACTION_EVENT, coordinator.async_handle_notification_action
+        )
+    )
 
     n_searches = sum(
         1 for s in entry.subentries.values() if s.subentry_type == SUBENTRY_TYPE_SEARCH

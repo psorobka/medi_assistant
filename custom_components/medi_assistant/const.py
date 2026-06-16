@@ -45,6 +45,7 @@ STORE_KEY_CLINICS = "clinics"
 STORE_KEY_DOCTORS = "doctors"
 STORE_KEY_LAST_REFRESHED = "last_refreshed"
 STORE_KEY_SEEN_SLOTS = "seen_slots"
+STORE_KEY_SNOOZE = "snooze"
 
 LANGUAGES: dict[int, str] = {4: "Polski", 6: "Angielski", 60: "Ukraiński"}
 
@@ -53,3 +54,9 @@ DEFAULT_SLOT_SEARCH_TYPE = 0
 CACHE_TTL = 86400  # 24 h in seconds
 
 SUBENTRY_TYPE_SEARCH = "search"
+
+# Actionable notifications (mobile_app companion)
+NOTIFY_ACTION_EVENT = "mobile_app_notification_action"
+ACTION_SNOOZE_PREFIX = "MEDI_SNOOZE"
+ACTION_DELETE_PREFIX = "MEDI_DELETE"
+SNOOZE_SECONDS = 86400  # 24 h
