@@ -267,6 +267,7 @@ async def test_expired_snooze_notifies_again(hass, mock_client):
 @pytest.mark.asyncio
 async def test_notify_payload_includes_actions(hass, mock_client):
     """Modern notify entity gets Drzemka/Usuń action buttons; legacy service does not."""
+    hass.config.language = "pl"
     hass.states.async_set("notify.phone", "idle")
     entity_calls = async_mock_service(hass, "notify", "send_message")
     legacy_calls = async_mock_service(hass, "notify", "telegram")
@@ -287,6 +288,24 @@ async def test_notify_payload_includes_actions(hass, mock_client):
     assert actions[1]["destructive"] is True
     # Legacy service path carries no action payload.
     assert "data" not in legacy_calls[0].data
+
+
+@pytest.mark.asyncio
+async def test_notify_action_titles_localized(hass, mock_client):
+    """Action titles come from translations: English locale → English titles."""
+    hass.config.language = "en"
+    hass.states.async_set("notify.phone", "idle")
+    calls = async_mock_service(hass, "notify", "send_message")
+    entry = MockConfigEntry(domain=DOMAIN, data=MOCK_ENTRY_DATA, title="Jan Kowalski")
+    entry.add_to_hass(hass)
+    _add_subentry(entry, notify_target="notify.phone")
+
+    coordinator = MedicoverCoordinator(hass, entry, mock_client, _make_filters_store(set()))
+    await coordinator._async_update_data()
+    await hass.async_block_till_done()
+
+    titles = [a["title"] for a in calls[0].data["data"]["actions"]]
+    assert titles == ["Snooze (24h)", "Delete"]
 
 
 # ---------------------------------------------------------------------------

@@ -94,5 +94,9 @@
         "name": "Refresh Medicover data"
       }
     }
+  },
+  "common": {
+    "action_snooze": "Snooze (24h)",
+    "action_delete": "Delete"
   }
 }

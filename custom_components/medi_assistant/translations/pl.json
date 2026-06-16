@@ -94,5 +94,9 @@
         "name": "Odśwież dane Medicover"
       }
     }
+  },
+  "common": {
+    "action_snooze": "Drzemka (24h)",
+    "action_delete": "Usuń"
   }
 }

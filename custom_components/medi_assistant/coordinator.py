@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import Event, HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed
+from homeassistant.helpers.translation import async_get_translations
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .const import (
@@ -16,6 +17,7 @@ from .const import (
     CONF_NOTIFY_TARGET,
     CONF_SCAN_INTERVAL,
     DEFAULT_SCAN_INTERVAL,
+    DOMAIN,
     SNOOZE_SECONDS,
     SUBENTRY_TYPE_SEARCH,
 )
@@ -29,6 +31,9 @@ _LOGGER = logging.getLogger(__name__)
 # Cap how many slots are listed in one notification (first-detection of a broad
 # search can match many at once).
 _MAX_NOTIFY_LINES = 15
+
+# Fallbacks used if the translation cache has no entry for the user's language.
+_DEFAULT_ACTION_TITLES = {"action_snooze": "Drzemka (24h)", "action_delete": "Usuń"}
 
 
 class MedicoverCoordinator(DataUpdateCoordinator[dict[str, list[dict[str, Any]]]]):
@@ -189,11 +194,7 @@ class MedicoverCoordinator(DataUpdateCoordinator[dict[str, list[dict[str, Any]]]
             if self.hass.states.get(target) is not None:
                 # Modern notify entity. Attach actionable buttons (rendered by
                 # the mobile_app companion; ignored by other notify entities).
-                base = f"{self._entry.entry_id}__{subentry.subentry_id}"
-                actions = [
-                    {"action": f"{ACTION_SNOOZE_PREFIX}__{base}", "title": "Drzemka (24h)"},
-                    {"action": f"{ACTION_DELETE_PREFIX}__{base}", "title": "Usuń", "destructive": True},
-                ]
+                actions = await self._async_action_buttons(subentry)
                 await self.hass.services.async_call(
                     "notify",
                     "send_message",
@@ -221,6 +222,31 @@ class MedicoverCoordinator(DataUpdateCoordinator[dict[str, list[dict[str, Any]]]
                 subentry.title,
                 err,
             )
+
+    async def _async_action_buttons(self, subentry: Any) -> list[dict[str, Any]]:
+        """Build the Drzemka/Usuń action buttons with localized titles.
+
+        Titles come from the integration's `common` translations (user's HA
+        language), falling back to the Polish defaults if not loaded.
+        """
+        translations = await async_get_translations(
+            self.hass, self.hass.config.language, "common", [DOMAIN]
+        )
+
+        def _title(key: str) -> str:
+            return translations.get(
+                f"component.{DOMAIN}.common.{key}", _DEFAULT_ACTION_TITLES[key]
+            )
+
+        base = f"{self._entry.entry_id}__{subentry.subentry_id}"
+        return [
+            {"action": f"{ACTION_SNOOZE_PREFIX}__{base}", "title": _title("action_snooze")},
+            {
+                "action": f"{ACTION_DELETE_PREFIX}__{base}",
+                "title": _title("action_delete"),
+                "destructive": True,
+            },
+        ]
 
     async def async_handle_notification_action(self, event: Event) -> None:
         """Handle a tap on a notification action button (Drzemka / Usuń).
