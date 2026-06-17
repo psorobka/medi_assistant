@@ -141,7 +141,10 @@ small sliding window). The integration:
 - on a rejected refresh, performs a **silent re‑login** with the stored
   credentials (the device is trusted after the first MFA, so no new code is
   needed),
-- persists the login session cookies so refresh works after a restart.
+- persists the login session cookies so refresh works after a restart,
+- **retries the silent re‑login a few times** (with backoff) on a transient
+  failure before falling back to an interactive re‑authentication prompt — a
+  single hiccup no longer triggers a reauth notification.
 
 You'll only be asked to re‑authenticate (with a fresh MFA code) if the password
 changes or Medicover revokes the device's trust.
@@ -174,12 +177,20 @@ anywhere except Medicover's own API.
 
 ```bash
 python -m venv .venv && source .venv/bin/activate
-pip install -r requirements_test.txt
-pytest
+pip install -r requirements_test.txt -r requirements_dev.txt
+pytest                 # test suite (loads the integration into a real hass)
+ruff check .           # lint
+ruff format .          # format
 ```
 
 Tests never hit the real API — the HTTP layer is mocked and fixtures live in
 `tests/fixtures/` (redacted).
+
+**CI** (GitHub Actions, on every push / PR to `main`) runs four jobs: ruff lint +
+`ruff format --check`, the pytest suite, **hassfest** manifest validation and
+**HACS** validation. `ruff` is pinned in `requirements_dev.txt` so its version is
+identical locally and in CI. **Dependabot** opens weekly, grouped PRs to bump the
+GitHub Actions and the Python dev/test dependencies.
 
 ## Credits
 
