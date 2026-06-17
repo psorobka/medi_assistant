@@ -11,11 +11,11 @@ automatyzacje i notyfikacje.
 
 ## Źródło prawdy
 
-- **`PLAN_integracji_medicover_ha.md`** — pełny plan architektury i etapów. Trzymaj się
-  decyzji z planu. Jeśli chcesz odejść od planu, najpierw to zaproponuj i uzasadnij.
-- **`medichaser.py`** — referencyjna implementacja logiki API (PKCE login, MFA, refresh
-  tokenu, endpointy `search-appointments/slots` i `/filters`). Z niej portujemy logikę
-  sieciową na async. NIE jest częścią integracji — to tylko wzorzec.
+Integracja jest już zbudowana — źródłem prawdy jest **kod w
+`custom_components/medi_assistant/`**. Logika sieciowa (PKCE login, MFA, refresh tokenu,
+endpointy `search-appointments/slots` i `/filters`) została sportowana na async z
+referencyjnego [`medichaser`](https://github.com/rafsaf/medichaser) (rafsaf) — to tylko
+upstreamowy wzorzec, nie część integracji.
 
 ## Twarde reguły
 
@@ -25,9 +25,9 @@ automatyzacje i notyfikacje.
    (typowany `ConfigEntry`), `DataUpdateCoordinator`, `Store` na cache. Bez konfiguracji YAML.
 3. **Prostota dla osób nietechnicznych.** UI to wyłącznie dropdowny z czytelnymi nazwami
    (nigdy ID), minimum wymaganych pól (region + specjalność), polskie tłumaczenia, czytelne
-   komunikaty błędów. Patrz sekcja 2 planu.
+   komunikaty błędów.
 4. **Endpointy z OIDC discovery** (`/.well-known/openid-configuration`), nie zaszyte na sztywno.
-5. **Logowanie jak w `medichaser.py`** — login + hasło + krok MFA (kod SMS) w config flow.
+5. **Logowanie jak w `medichaser`** — login + hasło + krok MFA (kod SMS) w config flow.
    Zamiast czytać kod ze `stdin`, rzucamy `MfaRequired` i obsługujemy krok we flow. Device
    code flow to „Future improvements", nie teraz.
 6. **Nazwa wpisu = imię i nazwisko pacjenta** z `/personal-data/api/personal`.
@@ -40,21 +40,21 @@ automatyzacje i notyfikacje.
   (po redakcji danych osobowych).
 - Framework: **`pytest-homeassistant-custom-component`** (fixtury `hass`,
   `enable_custom_integrations`, `MockConfigEntry`).
-- **Każdy etap kończ zielonym `pytest`.** Preferuj TDD: najpierw test danego zachowania,
+- **Kończ pracę zielonym `pytest`.** Preferuj TDD: najpierw test danego zachowania,
   potem implementacja aż przechodzi.
-- Zakres i struktura testów — sekcja 13 planu.
+- Istniejące testy w `tests/` pokazują konwencję (fixtury, mocki API, struktura).
 
 ## Sposób pracy
 
-- Pracuj **etapami z sekcji 11 planu** (1→12), pojedynczo, nie wszystko naraz.
-- Używaj **trybu plan** przed większym etapem; po akceptacji implementuj.
-- **Commituj po każdym działającym etapie** (zwięzłe, opisowe commity).
-- Trudne etapy (port logowania PKCE z `medichaser.py`) rób w izolacji, z plikiem jako wzorcem.
+- Używaj **trybu plan** przed większą zmianą; po akceptacji implementuj.
+- **Commituj po każdej działającej zmianie** (zwięzłe, opisowe commity).
+- Trudne zmiany w logice logowania PKCE/MFA rób w izolacji, z upstreamowym
+  `medichaser` jako wzorcem.
 
 ## Stos i wersje
 
 - Python: **3.13**
-- Struktura katalogów: patrz sekcja 3 planu (`custom_components/medicover/...`, `tests/...`).
+- Struktura katalogów: `custom_components/medi_assistant/...`, testy w `tests/...`.
 - Dystrybucja: HACS (custom repository), plus `hacs.json` i `manifest.json`.
 
 ## Polecenia
@@ -76,7 +76,7 @@ Integracja może **opcjonalnie** wysyłać powiadomienie per szukajka: w kreator
 dropdown „Powiadomienie" (`EntitySelector(domain="notify")` → encje `notify.*`). Gdy wybrany,
 koordynator po znalezieniu **nowych** terminów (diff względem poprzedniego odpytania) woła
 `notify.send_message` (best-effort — błąd nie wywala pollu). Bez wyboru — zero powiadomień;
-automatyzacja HA na sensorze pozostaje alternatywą. Zewnętrznych notyfikatorów z `medichaser.py`
+automatyzacja HA na sensorze pozostaje alternatywą. Zewnętrznych notyfikatorów z `medichaser`
 (pushbullet/telegram itd.) nadal NIE portujemy — korzystamy z natywnego `notify` HA.
 Uzasadnienie odejścia od pierwotnej reguły: nadrzędna wartość „prostota dla osób nietechnicznych".
 
