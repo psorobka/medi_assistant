@@ -36,7 +36,14 @@ jobs:
           python-version: "3.13"
           cache: pip
       - run: pip install -r requirements_test.txt
-      - run: pytest -q
+      - run: pytest -q --cov --cov-report=term-missing
+      - name: Coverage summary
+        if: always()
+        run: |
+          {
+            echo '## Coverage'
+            coverage report --format=markdown
+          } >> "$GITHUB_STEP_SUMMARY"
 
   hassfest:
     name: Hassfest (manifest validation)
