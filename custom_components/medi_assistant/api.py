@@ -98,9 +98,7 @@ class MedicoverAuth:
         # Medicover identifies the device via __mcc cookie (same as device_id param
         # in the authorize request). Must be present on every request including
         # token refresh, otherwise the server returns invalid_grant.
-        session.cookie_jar.update_cookies(
-            {"__mcc": device_id}, _YarlURL(MEDICOVER_LOGIN_URL)
-        )
+        session.cookie_jar.update_cookies({"__mcc": device_id}, _YarlURL(MEDICOVER_LOGIN_URL))
 
     # ------------------------------------------------------------------
     # Token helpers
@@ -154,15 +152,11 @@ class MedicoverAuth:
     def import_cookies(self, cookies: dict[str, str]) -> None:
         """Restore persisted cookies onto the auth session's jar."""
         if cookies:
-            self._session.cookie_jar.update_cookies(
-                cookies, _YarlURL(MEDICOVER_LOGIN_URL)
-            )
+            self._session.cookie_jar.update_cookies(cookies, _YarlURL(MEDICOVER_LOGIN_URL))
 
     def is_token_valid(self) -> bool:
         return bool(
-            self._access_token
-            and self._expires_at
-            and self._expires_at > int(time.time()) + 30
+            self._access_token and self._expires_at and self._expires_at > int(time.time()) + 30
         )
 
     def get_headers(self) -> dict[str, str]:
@@ -358,7 +352,9 @@ class MedicoverAuth:
             resp.raise_for_status()
             data = await resp.json(content_type=None)
         if "error" in data:
-            raise AuthError(f"Token exchange failed: {data.get('error_description', data['error'])}")
+            raise AuthError(
+                f"Token exchange failed: {data.get('error_description', data['error'])}"
+            )
         _LOGGER.info("Login successful — access token obtained")
         await self._save_tokens(data)
 
@@ -398,7 +394,9 @@ class MedicoverAuth:
         try:
             data = json.loads(raw)
         except json.JSONDecodeError as err:
-            raise AuthError(f"Token endpoint returned non-JSON (status={status}): {raw[:200]}") from err
+            raise AuthError(
+                f"Token endpoint returned non-JSON (status={status}): {raw[:200]}"
+            ) from err
         if "error" in data:
             err_desc = data.get("error_description", data["error"])
             if data["error"] == "invalid_grant":
@@ -426,9 +424,7 @@ class MedicoverAuth:
             except InvalidGrant:
                 if not (self._username and self._password):
                     raise
-            _LOGGER.warning(
-                "Refresh token rejected — attempting silent re-login (trusted device)"
-            )
+            _LOGGER.warning("Refresh token rejected — attempting silent re-login (trusted device)")
             await self.async_login(self._username, self._password)
             _LOGGER.info("Silent re-login succeeded — session restored without reauth")
 
@@ -544,14 +540,21 @@ class MedicoverClient:
         _LOGGER.debug(
             "find_appointments: region=%s, specialty=%s, clinic=%s, doctor=%s, "
             "language=%s, start=%s, end=%s",
-            region, specialty, clinic, doctor, language, start_date, end_date,
+            region,
+            specialty,
+            clinic,
+            doctor,
+            language,
+            start_date,
+            end_date,
         )
         data = await self._get(url, params)
         items: list[dict[str, Any]] = data.get("items", [])
 
         if end_date:
             items = [
-                x for x in items
+                x
+                for x in items
                 if x.get("appointmentDate") and x["appointmentDate"][:10] <= end_date
             ]
         _LOGGER.debug("find_appointments returned %d item(s)", len(items))

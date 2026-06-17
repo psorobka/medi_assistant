@@ -1,4 +1,5 @@
 """Tests for MedicoverAuth — device cookie and token refresh behaviour."""
+
 from __future__ import annotations
 
 import json
@@ -95,7 +96,9 @@ async def test_mcc_cookie_set_on_fresh_session():
     try:
         MedicoverAuth(fresh_session, device_id=_DEVICE_ID, device_ua=_DEVICE_UA)
         cookies = fresh_session.cookie_jar.filter_cookies(URL(MEDICOVER_LOGIN_URL))
-        assert "__mcc" in cookies, "Fresh session cookie jar must have __mcc after MedicoverAuth init"
+        assert "__mcc" in cookies, (
+            "Fresh session cookie jar must have __mcc after MedicoverAuth init"
+        )
     finally:
         await fresh_session.close()
 
@@ -159,9 +162,7 @@ async def test_cookie_roundtrip_export_import():
     auth1, session1 = _make_auth()
     auth2, session2 = _make_auth(device_id="other-device")
     try:
-        session1.cookie_jar.update_cookies(
-            {"idsrv.session": "roundtrip"}, URL(MEDICOVER_LOGIN_URL)
-        )
+        session1.cookie_jar.update_cookies({"idsrv.session": "roundtrip"}, URL(MEDICOVER_LOGIN_URL))
         exported = auth1.export_cookies()
 
         auth2.import_cookies(exported)
@@ -385,7 +386,9 @@ async def test_async_refresh_token_raises_auth_error_on_non_json_response():
     auth._oidc_config = _OIDC
 
     try:
-        with patch.object(session, "post", return_value=_mock_post_cm("not json at all", status=502)):
+        with patch.object(
+            session, "post", return_value=_mock_post_cm("not json at all", status=502)
+        ):
             with pytest.raises(AuthError):
                 await auth.async_refresh_token()
     finally:
@@ -415,7 +418,8 @@ async def test_get_retries_after_401_with_forced_refresh():
     client = MedicoverClient(auth, session)
     try:
         with patch.object(
-            session, "get",
+            session,
+            "get",
             side_effect=[_mock_get_cm(401), _mock_get_cm(200, {"ok": True})],
         ):
             data = await client._get("https://api/x", {})
@@ -432,7 +436,8 @@ async def test_get_raises_apierror_on_persistent_failure():
     client = MedicoverClient(auth, session)
     try:
         with patch.object(
-            session, "get",
+            session,
+            "get",
             side_effect=[_mock_get_cm(401), _mock_get_cm(500)],
         ):
             with pytest.raises(Exception):
@@ -457,7 +462,9 @@ def test_extract_csrf_missing_raises():
 
 
 def test_extract_return_url_from_page_url():
-    url = "https://login-online24.medicover.pl/Account/Login?ReturnUrl=%2Fconnect%2Fauthorize%3Fx%3D1"
+    url = (
+        "https://login-online24.medicover.pl/Account/Login?ReturnUrl=%2Fconnect%2Fauthorize%3Fx%3D1"
+    )
     assert _extract_return_url(url) == "/connect/authorize?x=1"
 
 

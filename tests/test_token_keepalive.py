@@ -5,6 +5,7 @@ refresh token sit unused past its sliding window, so the next refresh failed
 with invalid_grant → forced reauth. The keep-alive refreshes the token shortly
 before the access token expires, mimicking an active web session.
 """
+
 from __future__ import annotations
 
 import time

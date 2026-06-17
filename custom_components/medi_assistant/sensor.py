@@ -141,9 +141,9 @@ def _format_appointments(slots: list[dict[str, Any]]) -> list[dict[str, Any]]:
         clinic = (slot.get("clinic") or {}).get("name", "N/A")
         doctor = (slot.get("doctor") or {}).get("name", "N/A")
         specialty = (slot.get("specialty") or {}).get("name", "N/A")
-        langs = ", ".join(
-            lang.get("name", "") for lang in (slot.get("doctorLanguages") or [])
-        ) or "N/A"
+        langs = (
+            ", ".join(lang.get("name", "") for lang in (slot.get("doctorLanguages") or [])) or "N/A"
+        )
         result.append(
             {
                 "date": slot.get("appointmentDate", "N/A"),

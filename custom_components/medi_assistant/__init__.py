@@ -55,9 +55,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: MedicoverConfigEntry) ->
     auth_session = aiohttp.ClientSession(cookie_jar=aiohttp.CookieJar(unsafe=True))
 
     async def _on_tokens_updated(token_data: dict) -> None:
-        hass.config_entries.async_update_entry(
-            entry, data={**entry.data, **token_data}
-        )
+        hass.config_entries.async_update_entry(entry, data={**entry.data, **token_data})
 
     auth = MedicoverAuth(
         auth_session,
@@ -128,9 +126,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: MedicoverConfigEntry) ->
     # Listen for taps on notification action buttons (Drzemka / Usuń). The
     # event is global; the handler ignores actions for other accounts.
     entry.async_on_unload(
-        hass.bus.async_listen(
-            NOTIFY_ACTION_EVENT, coordinator.async_handle_notification_action
-        )
+        hass.bus.async_listen(NOTIFY_ACTION_EVENT, coordinator.async_handle_notification_action)
     )
 
     n_searches = sum(
@@ -157,9 +153,7 @@ async def _async_update_listener(hass: HomeAssistant, entry: MedicoverConfigEntr
     runtime_data = getattr(entry, "runtime_data", None)
     if runtime_data is None:
         return
-    new_interval = timedelta(
-        minutes=entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
-    )
+    new_interval = timedelta(minutes=entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL))
     if runtime_data.coordinator.update_interval != new_interval:
         await hass.config_entries.async_reload(entry.entry_id)
 

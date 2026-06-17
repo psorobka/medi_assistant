@@ -1,4 +1,5 @@
 """Tests for FiltersStore region-scoped specialty caching."""
+
 from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock

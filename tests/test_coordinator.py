@@ -1,4 +1,5 @@
 """Tests for MedicoverCoordinator."""
+
 from __future__ import annotations
 
 from types import MappingProxyType
@@ -55,9 +56,7 @@ def _add_subentry(
     return subentry
 
 
-def _make_filters_store(
-    seen: set[str] | None = None, snoozed_until: int = 0
-) -> MagicMock:
+def _make_filters_store(seen: set[str] | None = None, snoozed_until: int = 0) -> MagicMock:
     """Mock FiltersStore exposing the seen-slots / snooze API used by notifications."""
     fs = MagicMock()
     fs.get_seen_slots = MagicMock(return_value=set(seen or set()))
@@ -318,9 +317,7 @@ def _build_coordinator(hass, mock_client, fs=None):
     entry = MockConfigEntry(domain=DOMAIN, data=MOCK_ENTRY_DATA, title="Jan Kowalski")
     entry.add_to_hass(hass)
     sub = _add_subentry(entry)
-    coordinator = MedicoverCoordinator(
-        hass, entry, mock_client, fs or _make_filters_store()
-    )
+    coordinator = MedicoverCoordinator(hass, entry, mock_client, fs or _make_filters_store())
     return coordinator, entry, sub
 
 
@@ -357,9 +354,7 @@ async def test_delete_action_removes_subentry(hass, mock_client):
     )
 
     fs.async_clear_subentry_state.assert_awaited_once_with(sub.subentry_id)
-    hass.config_entries.async_remove_subentry.assert_called_once_with(
-        entry, sub.subentry_id
-    )
+    hass.config_entries.async_remove_subentry.assert_called_once_with(entry, sub.subentry_id)
 
 
 @pytest.mark.asyncio

@@ -1,4 +1,5 @@
 """Tests for the Medicover config flow (login, MFA, reauth, duplicate)."""
+
 from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -47,9 +48,7 @@ async def test_config_flow_happy_path(hass: HomeAssistant, personal_data):
             "custom_components.medi_assistant.config_flow.MedicoverAuth",
             return_value=mock_auth,
         ),
-        patch(
-            "custom_components.medi_assistant.config_flow.MedicoverClient"
-        ) as MockClient,
+        patch("custom_components.medi_assistant.config_flow.MedicoverClient") as MockClient,
         patch(
             "custom_components.medi_assistant.config_flow.aiohttp.ClientSession",
             return_value=_mock_auth_session(),
@@ -59,9 +58,7 @@ async def test_config_flow_happy_path(hass: HomeAssistant, personal_data):
         mock_client_instance.async_get_personal_data = AsyncMock(return_value=personal_data)
         MockClient.return_value = mock_client_instance
 
-        result = await hass.config_entries.flow.async_init(
-            DOMAIN, context={"source": "user"}
-        )
+        result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": "user"})
         assert result["type"] == FlowResultType.FORM
         assert result["step_id"] == "user"
 
@@ -82,9 +79,7 @@ async def test_config_flow_happy_path(hass: HomeAssistant, personal_data):
 @pytest.mark.asyncio
 async def test_config_flow_mfa_path(hass: HomeAssistant, personal_data):
     """Login raises MfaRequired → MFA step → entry created."""
-    mock_auth = _build_mock_auth(
-        side_effect=MfaRequired("code-id", "csrf-token", "/return")
-    )
+    mock_auth = _build_mock_auth(side_effect=MfaRequired("code-id", "csrf-token", "/return"))
     mock_auth.async_submit_mfa = AsyncMock()
 
     with (
@@ -92,9 +87,7 @@ async def test_config_flow_mfa_path(hass: HomeAssistant, personal_data):
             "custom_components.medi_assistant.config_flow.MedicoverAuth",
             return_value=mock_auth,
         ),
-        patch(
-            "custom_components.medi_assistant.config_flow.MedicoverClient"
-        ) as MockClient,
+        patch("custom_components.medi_assistant.config_flow.MedicoverClient") as MockClient,
         patch(
             "custom_components.medi_assistant.config_flow.aiohttp.ClientSession",
             return_value=_mock_auth_session(),
@@ -104,9 +97,7 @@ async def test_config_flow_mfa_path(hass: HomeAssistant, personal_data):
         mock_client_instance.async_get_personal_data = AsyncMock(return_value=personal_data)
         MockClient.return_value = mock_client_instance
 
-        result = await hass.config_entries.flow.async_init(
-            DOMAIN, context={"source": "user"}
-        )
+        result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": "user"})
         result2 = await hass.config_entries.flow.async_configure(
             result["flow_id"],
             {"username": "jan@example.com", "password": "secret"},
@@ -142,9 +133,7 @@ async def test_config_flow_invalid_auth(hass: HomeAssistant):
             return_value=_mock_auth_session(),
         ),
     ):
-        result = await hass.config_entries.flow.async_init(
-            DOMAIN, context={"source": "user"}
-        )
+        result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": "user"})
         result2 = await hass.config_entries.flow.async_configure(
             result["flow_id"],
             {"username": "bad@example.com", "password": "wrong"},
@@ -161,9 +150,7 @@ async def test_config_flow_invalid_auth(hass: HomeAssistant):
 
 @pytest.mark.asyncio
 async def test_config_flow_invalid_mfa(hass: HomeAssistant, personal_data):
-    mock_auth = _build_mock_auth(
-        side_effect=MfaRequired("code-id", "csrf", "/return")
-    )
+    mock_auth = _build_mock_auth(side_effect=MfaRequired("code-id", "csrf", "/return"))
     mock_auth.async_submit_mfa = AsyncMock(side_effect=AuthError("bad mfa"))
 
     with (
@@ -171,9 +158,7 @@ async def test_config_flow_invalid_mfa(hass: HomeAssistant, personal_data):
             "custom_components.medi_assistant.config_flow.MedicoverAuth",
             return_value=mock_auth,
         ),
-        patch(
-            "custom_components.medi_assistant.config_flow.MedicoverClient"
-        ) as MockClient,
+        patch("custom_components.medi_assistant.config_flow.MedicoverClient") as MockClient,
         patch(
             "custom_components.medi_assistant.config_flow.aiohttp.ClientSession",
             return_value=_mock_auth_session(),
@@ -183,9 +168,7 @@ async def test_config_flow_invalid_mfa(hass: HomeAssistant, personal_data):
         mock_client_instance.async_get_personal_data = AsyncMock(return_value=personal_data)
         MockClient.return_value = mock_client_instance
 
-        result = await hass.config_entries.flow.async_init(
-            DOMAIN, context={"source": "user"}
-        )
+        result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": "user"})
         await hass.config_entries.flow.async_configure(
             result["flow_id"],
             {"username": "jan@example.com", "password": "secret"},
@@ -221,9 +204,7 @@ async def test_config_flow_duplicate_aborts(hass: HomeAssistant, personal_data):
             "custom_components.medi_assistant.config_flow.MedicoverAuth",
             return_value=mock_auth,
         ),
-        patch(
-            "custom_components.medi_assistant.config_flow.MedicoverClient"
-        ) as MockClient,
+        patch("custom_components.medi_assistant.config_flow.MedicoverClient") as MockClient,
         patch(
             "custom_components.medi_assistant.config_flow.aiohttp.ClientSession",
             return_value=_mock_auth_session(),
@@ -233,9 +214,7 @@ async def test_config_flow_duplicate_aborts(hass: HomeAssistant, personal_data):
         mock_client_instance.async_get_personal_data = AsyncMock(return_value=personal_data)
         MockClient.return_value = mock_client_instance
 
-        result = await hass.config_entries.flow.async_init(
-            DOMAIN, context={"source": "user"}
-        )
+        result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": "user"})
         result2 = await hass.config_entries.flow.async_configure(
             result["flow_id"],
             {"username": "jan@example.com", "password": "secret"},
@@ -269,9 +248,7 @@ async def test_config_flow_entry_has_search_subentry_type(hass: HomeAssistant, p
     entry.supported_subentry_types calls async_get_supported_subentry_types(entry)
     internally — this exercises the exact HA code path that crashed on MFA completion.
     """
-    mock_auth = _build_mock_auth(
-        side_effect=MfaRequired("code-id", "csrf-token", "/return")
-    )
+    mock_auth = _build_mock_auth(side_effect=MfaRequired("code-id", "csrf-token", "/return"))
     mock_auth.async_submit_mfa = AsyncMock()
 
     with (
@@ -279,9 +256,7 @@ async def test_config_flow_entry_has_search_subentry_type(hass: HomeAssistant, p
             "custom_components.medi_assistant.config_flow.MedicoverAuth",
             return_value=mock_auth,
         ),
-        patch(
-            "custom_components.medi_assistant.config_flow.MedicoverClient"
-        ) as MockClient,
+        patch("custom_components.medi_assistant.config_flow.MedicoverClient") as MockClient,
         patch(
             "custom_components.medi_assistant.config_flow.aiohttp.ClientSession",
             return_value=_mock_auth_session(),
@@ -291,9 +266,7 @@ async def test_config_flow_entry_has_search_subentry_type(hass: HomeAssistant, p
         mock_client_instance.async_get_personal_data = AsyncMock(return_value=personal_data)
         MockClient.return_value = mock_client_instance
 
-        result = await hass.config_entries.flow.async_init(
-            DOMAIN, context={"source": "user"}
-        )
+        result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": "user"})
         await hass.config_entries.flow.async_configure(
             result["flow_id"],
             {"username": "jan@example.com", "password": "secret"},

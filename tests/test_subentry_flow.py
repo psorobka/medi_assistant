@@ -1,4 +1,5 @@
 """Tests for the SearchSubentryFlowHandler (region-first add/reconfigure)."""
+
 from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock
@@ -306,9 +307,7 @@ async def test_subentry_flow_prefetches_clinics_doctors(hass: HomeAssistant):
     result = await _init_subentry_flow(hass, entry)
     await _to_details(hass, result["flow_id"])
 
-    rd.filters_store.async_refresh_clinics_doctors.assert_called_once_with(
-        rd.client, 204, [9]
-    )
+    rd.filters_store.async_refresh_clinics_doctors.assert_called_once_with(rd.client, 204, [9])
 
 
 # ---------------------------------------------------------------------------

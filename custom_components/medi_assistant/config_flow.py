@@ -83,8 +83,20 @@ def _subentry_title(data: dict[str, Any]) -> str:
     if date := data.get(CONF_DATE_FROM):
         try:
             d = datetime.date.fromisoformat(date)
-            months = ["sty", "lut", "mar", "kwi", "maj", "cze",
-                      "lip", "sie", "wrz", "paź", "lis", "gru"]
+            months = [
+                "sty",
+                "lut",
+                "mar",
+                "kwi",
+                "maj",
+                "cze",
+                "lip",
+                "sie",
+                "wrz",
+                "paź",
+                "lis",
+                "gru",
+            ]
             parts.append(f"od {d.day} {months[d.month - 1]}")
         except ValueError:
             pass
@@ -106,7 +118,9 @@ class MedicoverConfigFlow(ConfigFlow, domain=DOMAIN):
         self._password: str = ""
 
     @classmethod
-    def async_get_supported_subentry_types(cls, config_entry: ConfigEntry) -> dict[str, type[ConfigSubentryFlow]]:
+    def async_get_supported_subentry_types(
+        cls, config_entry: ConfigEntry
+    ) -> dict[str, type[ConfigSubentryFlow]]:
         return {SUBENTRY_TYPE_SEARCH: SearchSubentryFlowHandler}
 
     @callback
@@ -119,9 +133,7 @@ class MedicoverConfigFlow(ConfigFlow, domain=DOMAIN):
     # Step: user (login + password)
     # ------------------------------------------------------------------
 
-    async def async_step_user(
-        self, user_input: dict[str, Any] | None = None
-    ) -> ConfigFlowResult:
+    async def async_step_user(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         errors: dict[str, str] = {}
 
         if user_input is not None:
@@ -153,7 +165,9 @@ class MedicoverConfigFlow(ConfigFlow, domain=DOMAIN):
                         TextSelectorConfig(type=TextSelectorType.EMAIL, autocomplete="username")
                     ),
                     vol.Required(CONF_PASSWORD): TextSelector(
-                        TextSelectorConfig(type=TextSelectorType.PASSWORD, autocomplete="current-password")
+                        TextSelectorConfig(
+                            type=TextSelectorType.PASSWORD, autocomplete="current-password"
+                        )
                     ),
                 }
             ),
@@ -164,9 +178,7 @@ class MedicoverConfigFlow(ConfigFlow, domain=DOMAIN):
     # Step: mfa
     # ------------------------------------------------------------------
 
-    async def async_step_mfa(
-        self, user_input: dict[str, Any] | None = None
-    ) -> ConfigFlowResult:
+    async def async_step_mfa(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         errors: dict[str, str] = {}
         assert self._auth is not None
 
@@ -242,9 +254,9 @@ class MedicoverConfigFlow(ConfigFlow, domain=DOMAIN):
             step_id="reauth_confirm",
             data_schema=vol.Schema(
                 {
-                    vol.Required(CONF_USERNAME, default=reauth_entry.data.get(CONF_USERNAME, "")): TextSelector(
-                        TextSelectorConfig(type=TextSelectorType.EMAIL)
-                    ),
+                    vol.Required(
+                        CONF_USERNAME, default=reauth_entry.data.get(CONF_USERNAME, "")
+                    ): TextSelector(TextSelectorConfig(type=TextSelectorType.EMAIL)),
                     vol.Required(CONF_PASSWORD): TextSelector(
                         TextSelectorConfig(type=TextSelectorType.PASSWORD)
                     ),
@@ -303,9 +315,7 @@ class MedicoverConfigFlow(ConfigFlow, domain=DOMAIN):
     async def _init_auth_session(self) -> None:
         if self._auth_session and not self._auth_session.closed:
             await self._auth_session.close()
-        self._auth_session = aiohttp.ClientSession(
-            cookie_jar=aiohttp.CookieJar(unsafe=True)
-        )
+        self._auth_session = aiohttp.ClientSession(cookie_jar=aiohttp.CookieJar(unsafe=True))
         device_id = _new_device_id()
         self._auth = MedicoverAuth(self._auth_session, device_id=device_id, device_ua=_DEFAULT_UA)
 
@@ -352,9 +362,7 @@ class MedicoverOptionsFlowHandler(OptionsFlow):
     def __init__(self, config_entry: ConfigEntry) -> None:
         self._entry = config_entry
 
-    async def async_step_init(
-        self, user_input: dict[str, Any] | None = None
-    ) -> ConfigFlowResult:
+    async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         if user_input is not None:
             return self.async_create_entry(data=user_input)
 
@@ -404,9 +412,7 @@ class SearchSubentryFlowHandler(ConfigSubentryFlow):
 
     # ---- Step 1: region ----
 
-    async def async_step_user(
-        self, user_input: dict[str, Any] | None = None
-    ) -> ConfigFlowResult:
+    async def async_step_user(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         entry = self._get_entry()
         runtime_data = getattr(entry, "runtime_data", None)
 
@@ -448,7 +454,11 @@ class SearchSubentryFlowHandler(ConfigSubentryFlow):
         return self.async_show_form(
             step_id="user",
             data_schema=vol.Schema(
-                {_req_key(CONF_REGION_ID, default_source, valid=regions): _id_value_selector(regions)}
+                {
+                    _req_key(CONF_REGION_ID, default_source, valid=regions): _id_value_selector(
+                        regions
+                    )
+                }
             ),
         )
 
@@ -578,9 +588,7 @@ class SearchSubentryFlowHandler(ConfigSubentryFlow):
 
 def _last_search_region(entry: ConfigEntry) -> int | None:
     """Region of the most recently added search (subentries keep insertion order)."""
-    searches = [
-        s for s in entry.subentries.values() if s.subentry_type == SUBENTRY_TYPE_SEARCH
-    ]
+    searches = [s for s in entry.subentries.values() if s.subentry_type == SUBENTRY_TYPE_SEARCH]
     return searches[-1].data.get(CONF_REGION_ID) if searches else None
 
 

@@ -1,4 +1,5 @@
 """Tests for async_setup_entry / async_unload_entry."""
+
 from __future__ import annotations
 
 import contextlib
@@ -72,9 +73,7 @@ def _setup_patches(
     mock_store.regions = []
 
     mock_coord = MagicMock()
-    mock_coord.async_config_entry_first_refresh = AsyncMock(
-        side_effect=first_refresh_side_effect
-    )
+    mock_coord.async_config_entry_first_refresh = AsyncMock(side_effect=first_refresh_side_effect)
 
     patches = [
         patch("custom_components.medi_assistant.MedicoverAuth", return_value=mock_auth),
@@ -112,9 +111,7 @@ async def test_setup_entry_sets_patient_name(hass: HomeAssistant, mock_client, p
         mock_store.regions = [{"id": 204, "value": "Warszawa"}]
         MockStore.return_value = mock_store
 
-        with patch(
-            "custom_components.medi_assistant.MedicoverCoordinator"
-        ) as MockCoord:
+        with patch("custom_components.medi_assistant.MedicoverCoordinator") as MockCoord:
             mock_coord = MagicMock()
             mock_coord.async_config_entry_first_refresh = AsyncMock()
             MockCoord.return_value = mock_coord
@@ -148,9 +145,7 @@ async def test_unload_entry(hass: HomeAssistant, mock_client):
         mock_store.regions = []
         MockStore.return_value = mock_store
 
-        with patch(
-            "custom_components.medi_assistant.MedicoverCoordinator"
-        ) as MockCoord:
+        with patch("custom_components.medi_assistant.MedicoverCoordinator") as MockCoord:
             mock_coord = MagicMock()
             mock_coord.async_config_entry_first_refresh = AsyncMock()
             MockCoord.return_value = mock_coord
@@ -217,9 +212,7 @@ async def test_update_listener_no_reload_on_non_interval_change():
     changes are handled without a reload (sensors added dynamically, removed by
     HA, edits applied live). Only a scan-interval change reloads.
     """
-    hass_mock, entry = _listener_mocks(
-        options={}, running_interval_min=DEFAULT_SCAN_INTERVAL
-    )
+    hass_mock, entry = _listener_mocks(options={}, running_interval_min=DEFAULT_SCAN_INTERVAL)
 
     await _async_update_listener(hass_mock, entry)
 

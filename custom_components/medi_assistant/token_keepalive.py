@@ -14,6 +14,7 @@ This helper schedules a proactive refresh shortly before each access token
 expires (independent of the slot poll interval), mimicking an active web
 session and keeping the refresh token chain alive.
 """
+
 from __future__ import annotations
 
 import logging
@@ -52,9 +53,7 @@ AUTH_RETRY_DELAY = 30.0
 class TokenKeepAlive:
     """Periodically refreshes the access token to keep the refresh token alive."""
 
-    def __init__(
-        self, hass: HomeAssistant, entry: ConfigEntry, auth: MedicoverAuth
-    ) -> None:
+    def __init__(self, hass: HomeAssistant, entry: ConfigEntry, auth: MedicoverAuth) -> None:
         self._hass = hass
         self._entry = entry
         self._auth = auth

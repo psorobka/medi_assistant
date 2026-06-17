@@ -1,4 +1,5 @@
 """Shared fixtures for Medicover HA integration tests."""
+
 from __future__ import annotations
 
 import json
@@ -15,6 +16,7 @@ pytest_plugins = "pytest_homeassistant_custom_component"
 def auto_enable_custom_integrations(enable_custom_integrations):
     """Enable custom integrations in all tests."""
     return
+
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -62,13 +64,15 @@ def mock_client(personal_data, filters_data, slots_data):
     client._auth = MagicMock()
     client._auth.is_token_valid = MagicMock(return_value=True)
     client._auth.async_refresh_token = AsyncMock()
-    client._auth.token_data = MagicMock(return_value={
-        "access_token": "fake-access-token",
-        "refresh_token": "fake-refresh-token",
-        "expires_at": 9999999999,
-        "device_id": "fake-device-id",
-        "device_ua": "FakeUA/1.0",
-    })
+    client._auth.token_data = MagicMock(
+        return_value={
+            "access_token": "fake-access-token",
+            "refresh_token": "fake-refresh-token",
+            "expires_at": 9999999999,
+            "device_id": "fake-device-id",
+            "device_ua": "FakeUA/1.0",
+        }
+    )
     return client
 
 

@@ -23,10 +23,7 @@ async def async_get_config_entry_diagnostics(
 ) -> dict[str, Any]:
     return {
         "entry_data": async_redact_data(dict(entry.data), _TO_REDACT),
-        "subentries": [
-            {"title": sub.title, "data": sub.data}
-            for sub in entry.subentries.values()
-        ],
+        "subentries": [{"title": sub.title, "data": sub.data} for sub in entry.subentries.values()],
         "filters_cached": bool(
             getattr(getattr(entry, "runtime_data", None), "filters_store", None)
             and entry.runtime_data.filters_store.regions

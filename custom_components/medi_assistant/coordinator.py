@@ -77,8 +77,7 @@ class MedicoverCoordinator(DataUpdateCoordinator[dict[str, list[dict[str, Any]]]
             raise UpdateFailed(f"Token refresh failed: {err}") from err
 
         searches = [
-            s for s in self._entry.subentries.values()
-            if s.subentry_type == SUBENTRY_TYPE_SEARCH
+            s for s in self._entry.subentries.values() if s.subentry_type == SUBENTRY_TYPE_SEARCH
         ]
         _LOGGER.info(
             "Polling %d search(es) for account '%s'",
@@ -234,9 +233,7 @@ class MedicoverCoordinator(DataUpdateCoordinator[dict[str, list[dict[str, Any]]]
         )
 
         def _title(key: str) -> str:
-            return translations.get(
-                f"component.{DOMAIN}.common.{key}", _DEFAULT_ACTION_TITLES[key]
-            )
+            return translations.get(f"component.{DOMAIN}.common.{key}", _DEFAULT_ACTION_TITLES[key])
 
         base = f"{self._entry.entry_id}__{subentry.subentry_id}"
         return [

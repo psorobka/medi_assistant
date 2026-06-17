@@ -1,4 +1,5 @@
 """Tests for MedicoverRefreshButton."""
+
 from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -7,7 +8,6 @@ import pytest
 from homeassistant.core import HomeAssistant
 
 from custom_components.medi_assistant.button import MedicoverRefreshButton
-
 
 
 @pytest.mark.asyncio

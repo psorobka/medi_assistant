@@ -32,9 +32,7 @@ class FiltersStore:
     """Persists patient data and filter lists (regions / specialties / clinics / doctors)."""
 
     def __init__(self, hass: HomeAssistant, entry_id: str) -> None:
-        self._store: Store[dict[str, Any]] = Store(
-            hass, _STORE_VERSION, f"{DOMAIN}.{entry_id}"
-        )
+        self._store: Store[dict[str, Any]] = Store(hass, _STORE_VERSION, f"{DOMAIN}.{entry_id}")
         self._data: dict[str, Any] = {}
 
     async def async_load(self) -> None:
@@ -82,12 +80,13 @@ class FiltersStore:
         await self.async_save()
         _LOGGER.debug(
             "Clinics/doctors cached: %d clinic(s), %d doctor(s) for region=%d, specialties=%s",
-            len(clinics), len(doctors), region, specialty,
+            len(clinics),
+            len(doctors),
+            region,
+            specialty,
         )
 
-    async def async_refresh_specialties(
-        self, client: MedicoverClient, region: int
-    ) -> None:
+    async def async_refresh_specialties(self, client: MedicoverClient, region: int) -> None:
         """Fetch specialties available in a region.
 
         The global /filters call (no region) returns only a small subset, so the
