@@ -11,3 +11,7 @@ config/
 
 # Referencyjna implementacja API (wzorzec, nie część integracji)
 medichaser.py
+# coverage
+.coverage
+coverage.xml
+htmlcov/
