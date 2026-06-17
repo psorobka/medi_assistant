@@ -19,7 +19,7 @@ from custom_components.medi_assistant.const import (
     DOMAIN,
 )
 
-from .conftest import MOCK_ENTRY_DATA, MOCK_SUBENTRY_DATA
+from .conftest import MOCK_ENTRY_DATA
 
 
 def _make_entry(hass: HomeAssistant) -> MockConfigEntry:

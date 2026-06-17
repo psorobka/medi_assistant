@@ -8,7 +8,6 @@ from homeassistant.core import HomeAssistant
 
 from custom_components.medi_assistant.button import MedicoverRefreshButton
 
-from .conftest import MOCK_ENTRY_DATA
 
 
 @pytest.mark.asyncio

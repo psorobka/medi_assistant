@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import datetime
 import logging
-import uuid
 from typing import TYPE_CHECKING, Any
 
 import aiohttp
@@ -53,12 +52,10 @@ from .const import (
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_SLOT_SEARCH_TYPE,
     DOMAIN,
-    ENTRY_DEVICE_ID,
-    ENTRY_DEVICE_UA,
     LANGUAGES,
     SUBENTRY_TYPE_SEARCH,
 )
-from .exceptions import AuthError, InvalidGrant, MfaRequired
+from .exceptions import AuthError, MfaRequired
 
 if TYPE_CHECKING:
     pass
