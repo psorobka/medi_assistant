@@ -17,6 +17,20 @@ endpointy `search-appointments/slots` i `/filters`) została sportowana na async
 referencyjnego [`medichaser`](https://github.com/rafsaf/medichaser) (rafsaf) — to tylko
 upstreamowy wzorzec, nie część integracji.
 
+## Mapa kodu (`custom_components/medi_assistant/`)
+
+- `api.py` — `MedicoverAuth` (PKCE login, MFA, refresh tokenu, ciche re-login) +
+  `MedicoverClient` (slots / filters / personal-data).
+- `coordinator.py` — `DataUpdateCoordinator`: poll szukajek, diff nowych terminów, notyfikacje.
+- `token_keepalive.py` — proaktywny refresh tokenu przed wygaśnięciem; retry z backoffem
+  przed reauth.
+- `config_flow.py` — `ConfigFlow` (konto + MFA + reauth) i `SubentryFlow` (kreator szukajek).
+- `store.py` — cache filtrów / danych pacjenta; `button.py` — „Odśwież dane Medicover".
+- `sensor.py` — sensor per szukajka; `diagnostics.py` — redakcja tokenów/danych.
+- `const.py` — `DOMAIN`, klucze `entry.data`/`Store`; `exceptions.py` — `AuthError` /
+  `MfaRequired` / `InvalidGrant`.
+- Tokeny żyją w `entry.data` (nie w `Store`); auth ma własną sesję z cookie jar.
+
 ## Twarde reguły
 
 1. **Async/aiohttp wszędzie.** Cała komunikacja sieciowa przez `async_get_clientsession(hass)`.
@@ -62,13 +76,16 @@ upstreamowy wzorzec, nie część integracji.
 ```bash
 # testy
 pytest
+pytest tests/test_config_flow.py -k mfa -vv   # pojedynczy plik / test
 
-# pojedynczy plik / test
-pytest tests/test_config_flow.py -k mfa -vv
-
-# walidacja manifestu (lokalnie, jeśli dostępne)
-python -m script.hassfest  # zwykle uruchamiane w CI, nie lokalnie
+# lint + format (ruff przypięty w requirements_dev.txt)
+pip install -r requirements_dev.txt
+ruff check . && ruff format .
 ```
+
+CI (push / PR do `main`) jest bramką: **ruff (check + format --check) + pytest + hassfest +
+HACS**. Wersja ruffa przypięta w `requirements_dev.txt` (ta sama lokalnie i w CI), więc
+`ruff format` lokalnie = zielony `--check` w CI. Hassfest/HACS walidują się tylko w CI.
 
 ## Notyfikacje
 
