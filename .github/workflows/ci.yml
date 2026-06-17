@@ -36,7 +36,7 @@ jobs:
           python-version: "3.13"
           cache: pip
       - run: pip install -r requirements_test.txt
-      - run: pytest -q --cov --cov-report=term-missing
+      - run: pytest -q --cov --cov-report=term-missing --cov-fail-under=90
       - name: Coverage summary
         if: always()
         run: |
