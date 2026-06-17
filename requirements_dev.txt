@@ -1,0 +1,3 @@
+# Narzędzia deweloperskie (lint/format). Wersja przypięta, żeby nowy release
+# ruffa nie wywrócił CI nieoczekiwaną zmianą reguł/formatowania.
+ruff==0.15.17
