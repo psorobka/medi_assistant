@@ -1,5 +1,6 @@
 # Medi Assistant — Medicover appointments for Home Assistant
 
+[![CI](https://github.com/psorobka/medi_assistant/actions/workflows/ci.yml/badge.svg)](https://github.com/psorobka/medi_assistant/actions/workflows/ci.yml)
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
 
 A Home Assistant custom integration that polls the unofficial Medicover **online24**
