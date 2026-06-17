@@ -40,6 +40,13 @@ MIN_DELAY = 30.0
 FALLBACK_DELAY = 60.0
 # Delay before retrying after a transient (non-auth) refresh error.
 RETRY_DELAY = 30.0
+# How many consecutive auth failures to tolerate before forcing reauth. The
+# silent re-login (trusted device) occasionally fails transiently — a single
+# hiccup should not pop a reauth prompt and stop the keep-alive (a restart
+# would just recover it). Retry a few times first.
+MAX_AUTH_RETRIES = 3
+# Base delay between auth-failure retries (grows linearly per attempt).
+AUTH_RETRY_DELAY = 30.0
 
 
 class TokenKeepAlive:
@@ -52,6 +59,8 @@ class TokenKeepAlive:
         self._entry = entry
         self._auth = auth
         self._unsub: CALLBACK_TYPE | None = None
+        # Consecutive auth failures; reset on any successful refresh.
+        self._auth_failures = 0
 
     @callback
     def start(self) -> None:
@@ -85,11 +94,28 @@ class TokenKeepAlive:
         try:
             await self._auth.async_refresh_or_relogin()
         except (InvalidGrant, MfaRequired, AuthError) as err:
+            self._auth_failures += 1
+            if self._auth_failures < MAX_AUTH_RETRIES:
+                retry_delay = AUTH_RETRY_DELAY * self._auth_failures
+                _LOGGER.warning(
+                    "Refresh + silent re-login failed for '%s' (%s, attempt %d/%d) "
+                    "— retrying in %.0fs",
+                    self._entry.title,
+                    type(err).__name__,
+                    self._auth_failures,
+                    MAX_AUTH_RETRIES,
+                    retry_delay,
+                )
+                self._schedule(retry_delay)
+                return
             _LOGGER.warning(
-                "Refresh + silent re-login failed for '%s' (%s) — starting reauth",
+                "Refresh + silent re-login failed for '%s' (%s) after %d attempts "
+                "— starting reauth",
                 self._entry.title,
                 type(err).__name__,
+                self._auth_failures,
             )
+            self._auth_failures = 0
             self._entry.async_start_reauth(self._hass)
             return
         except Exception as err:  # noqa: BLE001 — transient errors get a retry
@@ -101,4 +127,5 @@ class TokenKeepAlive:
             )
             self._schedule(RETRY_DELAY)
             return
+        self._auth_failures = 0
         self._schedule(self._next_delay())

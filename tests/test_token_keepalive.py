@@ -12,9 +12,15 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from custom_components.medi_assistant.exceptions import InvalidGrant
+from custom_components.medi_assistant.exceptions import (
+    AuthError,
+    InvalidGrant,
+    MfaRequired,
+)
 from custom_components.medi_assistant.token_keepalive import (
+    AUTH_RETRY_DELAY,
     FALLBACK_DELAY,
+    MAX_AUTH_RETRIES,
     MIN_DELAY,
     REFRESH_BUFFER,
     RETRY_DELAY,
@@ -108,16 +114,79 @@ async def test_refresh_success_reschedules():
 
 
 @pytest.mark.asyncio
-async def test_refresh_invalid_grant_starts_reauth_and_stops():
-    """invalid_grant → start reauth, do NOT reschedule."""
+async def test_refresh_invalid_grant_retries_before_reauth():
+    """A single invalid_grant retries the silent re-login (no reauth yet)."""
     ka, auth, entry = _make_keepalive(int(time.time()) + 180)
     auth.async_refresh_or_relogin = AsyncMock(side_effect=InvalidGrant("expired"))
 
-    with patch(f"{_MODULE}.async_call_later") as mock_cl:
+    with patch(f"{_MODULE}.async_call_later", return_value=MagicMock()) as mock_cl:
+        await ka._async_refresh(None)
+
+    entry.async_start_reauth.assert_not_called()
+    mock_cl.assert_called_once()
+    assert mock_cl.call_args[0][1] == AUTH_RETRY_DELAY  # first attempt → 1x base delay
+
+
+@pytest.mark.asyncio
+async def test_refresh_auth_error_retries_then_reauths():
+    """Repeated auth errors retry MAX_AUTH_RETRIES-1 times, then force reauth."""
+    ka, auth, entry = _make_keepalive(int(time.time()) + 180)
+    auth.async_refresh_or_relogin = AsyncMock(side_effect=AuthError("bad password"))
+
+    with patch(f"{_MODULE}.async_call_later", return_value=MagicMock()) as mock_cl:
+        # First MAX_AUTH_RETRIES-1 calls reschedule a retry, no reauth.
+        for attempt in range(1, MAX_AUTH_RETRIES):
+            await ka._async_refresh(None)
+            entry.async_start_reauth.assert_not_called()
+            assert mock_cl.call_count == attempt
+            assert mock_cl.call_args[0][1] == AUTH_RETRY_DELAY * attempt
+
+        # The final call escalates to reauth without rescheduling.
         await ka._async_refresh(None)
 
     entry.async_start_reauth.assert_called_once()
-    mock_cl.assert_not_called()  # no reschedule after fatal auth error
+    assert mock_cl.call_count == MAX_AUTH_RETRIES - 1  # no extra reschedule
+
+
+@pytest.mark.asyncio
+async def test_refresh_mfa_required_retries():
+    """MfaRequired also goes through the retry path, not immediate reauth."""
+    ka, auth, entry = _make_keepalive(int(time.time()) + 180)
+    auth.async_refresh_or_relogin = AsyncMock(
+        side_effect=MfaRequired(mfa_code_id="x", csrf="y", return_url="z")
+    )
+
+    with patch(f"{_MODULE}.async_call_later", return_value=MagicMock()) as mock_cl:
+        await ka._async_refresh(None)
+
+    entry.async_start_reauth.assert_not_called()
+    mock_cl.assert_called_once()
+    assert mock_cl.call_args[0][1] == AUTH_RETRY_DELAY
+
+
+@pytest.mark.asyncio
+async def test_refresh_success_resets_auth_failure_counter():
+    """A success between failures resets the counter, so the next failure restarts at attempt 1."""
+    ka, auth, entry = _make_keepalive(int(time.time()) + 180)
+
+    with patch(f"{_MODULE}.async_call_later", return_value=MagicMock()) as mock_cl:
+        # One auth failure → counter at 1.
+        auth.async_refresh_or_relogin = AsyncMock(side_effect=InvalidGrant("expired"))
+        await ka._async_refresh(None)
+        assert ka._auth_failures == 1
+
+        # A success resets the counter.
+        auth.async_refresh_or_relogin = AsyncMock(return_value=None)
+        await ka._async_refresh(None)
+        assert ka._auth_failures == 0
+
+        # Next failure starts again at attempt 1 (1x base delay), not 2x.
+        auth.async_refresh_or_relogin = AsyncMock(side_effect=InvalidGrant("expired"))
+        await ka._async_refresh(None)
+
+    entry.async_start_reauth.assert_not_called()
+    assert ka._auth_failures == 1
+    assert mock_cl.call_args[0][1] == AUTH_RETRY_DELAY
 
 
 @pytest.mark.asyncio
