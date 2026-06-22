@@ -236,6 +236,55 @@ async def test_refresh_or_relogin_propagates_mfa_required():
 
 
 @pytest.mark.asyncio
+async def test_refresh_or_relogin_reseeds_cookies_before_login():
+    """A silent re-login must re-seed the jar from the known-good snapshot first.
+
+    Runtime regression: the live auth jar drifts (rolling login cookies expire),
+    so a re-login from that drifted state fails — yet a restart, which re-imports
+    the persisted snapshot into a fresh jar, recovers. The re-login now reproduces
+    that reset: clear the jar, re-add __mcc, re-import the good cookies.
+    """
+    auth, session = _make_auth()
+    auth.set_credentials("user@example.com", "secret")
+    # Known-good snapshot (what restart would re-import).
+    auth.load_tokens({"auth_cookies": {"idsrv.session": "good", "__mcc": _DEVICE_ID}})
+    # Simulate a drifted runtime jar: a stale cookie not present in the snapshot.
+    session.cookie_jar.update_cookies({"stale": "junk"}, URL(MEDICOVER_LOGIN_URL))
+
+    auth._async_perform_refresh = AsyncMock(side_effect=InvalidGrant("dead"))
+
+    async def _capture_login(_user, _pwd):
+        # Assert the jar state at the moment login runs.
+        cookies = session.cookie_jar.filter_cookies(URL(MEDICOVER_LOGIN_URL))
+        assert "stale" not in cookies  # drifted cookie cleared
+        assert cookies["__mcc"].value == _DEVICE_ID  # device id re-seeded
+        assert cookies["idsrv.session"].value == "good"  # snapshot re-imported
+
+    auth.async_login = AsyncMock(side_effect=_capture_login)
+    try:
+        await auth.async_refresh_or_relogin()
+        auth.async_login.assert_awaited_once()
+    finally:
+        await session.close()
+
+
+@pytest.mark.asyncio
+async def test_reset_session_cookies_restores_mcc_after_clear():
+    """_reset_session_cookies clears the jar but re-adds __mcc (device id)."""
+    auth, session = _make_auth()
+    auth.load_tokens({"auth_cookies": {"idsrv.session": "good", "__mcc": _DEVICE_ID}})
+    session.cookie_jar.update_cookies({"stale": "junk"}, URL(MEDICOVER_LOGIN_URL))
+    try:
+        auth._reset_session_cookies()
+        cookies = session.cookie_jar.filter_cookies(URL(MEDICOVER_LOGIN_URL))
+        assert "stale" not in cookies
+        assert cookies["__mcc"].value == _DEVICE_ID
+        assert cookies["idsrv.session"].value == "good"
+    finally:
+        await session.close()
+
+
+@pytest.mark.asyncio
 async def test_concurrent_refresh_runs_only_once():
     """Two tasks refreshing at once → lock + double-check = one actual refresh.
 

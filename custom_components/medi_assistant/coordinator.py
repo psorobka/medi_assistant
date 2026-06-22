@@ -7,7 +7,6 @@ from typing import TYPE_CHECKING, Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import Event, HomeAssistant
-from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.translation import async_get_translations
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
@@ -72,7 +71,10 @@ class MedicoverCoordinator(DataUpdateCoordinator[dict[str, list[dict[str, Any]]]
                 _LOGGER.debug("Token expired for '%s', refreshing before poll", self._entry.title)
                 await auth.async_refresh_or_relogin()
         except (InvalidGrant, MfaRequired, AuthError) as err:
-            raise ConfigEntryAuthFailed("Token expired — reauth required") from err
+            # Don't pop reauth on a single poll-time hiccup. The keep-alive is the
+            # designated place to escalate to reauth (it retries first and re-seeds
+            # cookies before re-login); here we just fail this poll transiently.
+            raise UpdateFailed(f"Token refresh failed ({type(err).__name__})") from err
         except Exception as err:
             raise UpdateFailed(f"Token refresh failed: {err}") from err
 
@@ -112,7 +114,8 @@ class MedicoverCoordinator(DataUpdateCoordinator[dict[str, list[dict[str, Any]]]
                     slot_search_type=data.get("slot_search_type", 0),
                 )
             except InvalidGrant as err:
-                raise ConfigEntryAuthFailed("Token expired") from err
+                # Same as above: defer reauth to the keep-alive, fail poll transiently.
+                raise UpdateFailed(f"Token expired for '{subentry.title}'") from err
             except ApiError as err:
                 raise UpdateFailed(f"API error for '{subentry.title}': {err}") from err
             except Exception as err:

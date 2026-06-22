@@ -83,6 +83,12 @@ class MedicoverAuth:
         self._expires_at: int | None = None
         self._oidc_config: dict[str, Any] | None = None
 
+        # Last known-good cookie snapshot (login/idsrv session + device trust).
+        # A silent re-login at runtime re-seeds the jar from this — same as what
+        # `load_tokens` does on a fresh session at startup — so re-login starts
+        # from a clean, known-good state instead of a drifted runtime jar.
+        self._good_cookies: dict[str, str] = {}
+
         # Serializes token refresh/re-login so the keep-alive timer and the
         # coordinator poll (which can fire in the same ~30s window) never POST
         # the same refresh token twice (Medicover rotates it → invalid_grant).
@@ -113,7 +119,9 @@ class MedicoverAuth:
         self._access_token = data.get(ENTRY_ACCESS_TOKEN)
         self._refresh_token_val = data.get(ENTRY_REFRESH_TOKEN)
         self._expires_at = data.get(ENTRY_EXPIRES_AT)
-        self.import_cookies(data.get(ENTRY_AUTH_COOKIES) or {})
+        cookies = data.get(ENTRY_AUTH_COOKIES) or {}
+        self._good_cookies = dict(cookies)
+        self.import_cookies(cookies)
         _LOGGER.debug(
             "Tokens loaded: has_access=%s, has_refresh=%s, expires_at=%s, "
             "secs_remaining=%s, cookies=%d",
@@ -153,6 +161,26 @@ class MedicoverAuth:
         """Restore persisted cookies onto the auth session's jar."""
         if cookies:
             self._session.cookie_jar.update_cookies(cookies, _YarlURL(MEDICOVER_LOGIN_URL))
+
+    def _reset_session_cookies(self) -> None:
+        """Reset the jar to the last known-good snapshot before a silent re-login.
+
+        At runtime the auth session's cookie jar drifts (aiohttp expires/replaces
+        the rolling login cookies), so a silent re-login can start from a broken
+        state — which is exactly what a restart fixes by re-importing the persisted
+        snapshot into a fresh jar. This reproduces that reset without a restart:
+        clear the jar, re-seed `__mcc` (device id) and the known-good cookies.
+        """
+        self._session.cookie_jar.clear()
+        self._session.cookie_jar.update_cookies(
+            {"__mcc": self._device_id}, _YarlURL(MEDICOVER_LOGIN_URL)
+        )
+        self.import_cookies(self._good_cookies)
+        _LOGGER.debug(
+            "Reset auth jar before silent re-login: re-seeded %d cookie(s) (%s)",
+            len(self._good_cookies),
+            ", ".join(sorted(self._good_cookies)) or "none",
+        )
 
     def is_token_valid(self) -> bool:
         return bool(
@@ -425,6 +453,9 @@ class MedicoverAuth:
                 if not (self._username and self._password):
                     raise
             _LOGGER.warning("Refresh token rejected — attempting silent re-login (trusted device)")
+            # Re-seed the jar from the known-good snapshot so the re-login starts
+            # from the same clean state a restart would give it (see method docstring).
+            self._reset_session_cookies()
             await self.async_login(self._username, self._password)
             _LOGGER.info("Silent re-login succeeded — session restored without reauth")
 
@@ -450,6 +481,9 @@ class MedicoverAuth:
         self._access_token = data.get("access_token")
         self._refresh_token_val = data.get("refresh_token")
         self._expires_at = int(time.time()) + expires_in if expires_in else None
+        # Refresh the known-good snapshot from the current (post-login/refresh) jar
+        # so a later runtime re-login re-seeds from the freshest good cookies.
+        self._good_cookies = self.export_cookies()
         _LOGGER.debug("Token saved, expires_in=%ss", expires_in)
         if self._token_update_callback:
             await self._token_update_callback(self.token_data())

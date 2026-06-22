@@ -10,7 +10,6 @@ import time
 import pytest
 from homeassistant.config_entries import ConfigSubentry
 from homeassistant.core import Event, HomeAssistant
-from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.update_coordinator import UpdateFailed
 from pytest_homeassistant_custom_component.common import (
     MockConfigEntry,
@@ -82,8 +81,12 @@ async def test_coordinator_returns_slots(hass: HomeAssistant, mock_client, slots
 
 
 @pytest.mark.asyncio
-async def test_coordinator_invalid_grant_raises_auth_failed(hass: HomeAssistant):
-    """InvalidGrant during token refresh → ConfigEntryAuthFailed."""
+async def test_coordinator_invalid_grant_raises_update_failed(hass: HomeAssistant):
+    """InvalidGrant during token refresh → UpdateFailed (reauth deferred to keep-alive).
+
+    The coordinator must NOT pop reauth on a single poll-time auth hiccup; the
+    keep-alive is the designated escalator (it retries + re-seeds cookies first).
+    """
     mock_auth = MagicMock()
     mock_auth.is_token_valid = MagicMock(return_value=False)
     mock_auth.async_refresh_or_relogin = AsyncMock(side_effect=InvalidGrant("expired"))
@@ -96,7 +99,7 @@ async def test_coordinator_invalid_grant_raises_auth_failed(hass: HomeAssistant)
 
     coordinator = MedicoverCoordinator(hass, entry, mock_client, _make_filters_store())
 
-    with pytest.raises(ConfigEntryAuthFailed):
+    with pytest.raises(UpdateFailed):
         await coordinator._async_update_data()
 
 
