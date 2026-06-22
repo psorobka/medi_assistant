@@ -92,6 +92,9 @@
     "button": {
       "refresh_data": {
         "name": "Odśwież dane Medicover"
+      },
+      "force_reauth": {
+        "name": "Zaloguj ponownie do Medicover"
       }
     }
   },

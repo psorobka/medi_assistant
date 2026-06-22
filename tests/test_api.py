@@ -194,6 +194,39 @@ async def test_refresh_or_relogin_no_relogin_on_success():
 
 
 @pytest.mark.asyncio
+async def test_refresh_or_relogin_force_refreshes_valid_token():
+    """force=True refreshes even when the token still looks clock-valid.
+
+    Used by the manual re-login button to recover a session the server rejected
+    despite the token not having expired by the clock.
+    """
+    auth, session = _make_auth()
+    auth.set_credentials("user@example.com", "secret")
+    auth.is_token_valid = MagicMock(return_value=True)
+    auth._async_perform_refresh = AsyncMock()
+    auth.async_login = AsyncMock()
+    try:
+        await auth.async_refresh_or_relogin(force=True)
+        auth._async_perform_refresh.assert_awaited_once()
+        auth.async_login.assert_not_called()
+    finally:
+        await session.close()
+
+
+@pytest.mark.asyncio
+async def test_refresh_or_relogin_skips_when_valid_without_force():
+    """Without force, a clock-valid token short-circuits (no refresh POST)."""
+    auth, session = _make_auth()
+    auth.is_token_valid = MagicMock(return_value=True)
+    auth._async_perform_refresh = AsyncMock()
+    try:
+        await auth.async_refresh_or_relogin()
+        auth._async_perform_refresh.assert_not_called()
+    finally:
+        await session.close()
+
+
+@pytest.mark.asyncio
 async def test_refresh_or_relogin_relogins_on_invalid_grant():
     """invalid_grant + stored credentials → silent re-login with those creds."""
     auth, session = _make_auth()

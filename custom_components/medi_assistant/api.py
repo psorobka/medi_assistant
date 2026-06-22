@@ -434,7 +434,7 @@ class MedicoverAuth:
         _LOGGER.info("Access token refreshed successfully")
         await self._save_tokens(data)
 
-    async def async_refresh_or_relogin(self) -> None:
+    async def async_refresh_or_relogin(self, force: bool = False) -> None:
         """Refresh the access token; on invalid_grant, attempt a silent re-login.
 
         Mirrors medichaser: a rejected refresh token is recovered by a full
@@ -442,9 +442,12 @@ class MedicoverAuth:
         MFA. Propagates MfaRequired (device not trusted → needs interactive
         reauth) or AuthError (bad stored password); re-raises InvalidGrant if no
         credentials are stored.
+
+        `force=True` refreshes even if the token still looks clock-valid — used by
+        the manual "re-login" button to recover a session the server rejected.
         """
         async with self._refresh_lock:
-            if self.is_token_valid():
+            if not force and self.is_token_valid():
                 return  # another task already refreshed while we waited
             try:
                 await self._async_perform_refresh()

@@ -92,6 +92,9 @@
     "button": {
       "refresh_data": {
         "name": "Refresh Medicover data"
+      },
+      "force_reauth": {
+        "name": "Re-login to Medicover"
       }
     }
   },
