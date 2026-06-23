@@ -79,6 +79,9 @@
             "date_from": "Search from date",
             "date_to": "Search until date",
             "notify_target": "Notification (notify entity or service)"
+          },
+          "data_description": {
+            "notify_target": "Pick your phone (notify.mobile_app_…) to get a push with Snooze/Delete buttons. Add notify.persistent_notification to also keep a sticky entry in the Home Assistant panel (no buttons)."
           }
         }
       },

@@ -268,27 +268,23 @@ async def test_expired_snooze_notifies_again(hass, mock_client):
 
 @pytest.mark.asyncio
 async def test_notify_payload_includes_actions(hass, mock_client):
-    """A mobile_app entity gets Drzemka/Usuń buttons via its legacy service; others don't.
+    """A mobile_app legacy service target gets Drzemka/Usuń buttons; others don't.
 
-    The modern `notify.send_message` schema rejects `data`, so action buttons
-    are delivered through the matching `notify.mobile_app_<object_id>` service.
+    Action buttons live in `data`, which only the legacy `notify.mobile_app_*`
+    service accepts — so the user targets that service directly.
     """
     hass.config.language = "pl"
-    hass.states.async_set("notify.phone", "idle")
-    entity_calls = async_mock_service(hass, "notify", "send_message")
     mobile_calls = async_mock_service(hass, "notify", "mobile_app_phone")
     legacy_calls = async_mock_service(hass, "notify", "telegram")
     entry = MockConfigEntry(domain=DOMAIN, data=MOCK_ENTRY_DATA, title="Jan Kowalski")
     entry.add_to_hass(hass)
-    sub = _add_subentry(entry, notify_target=["notify.phone", "notify.telegram"])
+    sub = _add_subentry(entry, notify_target=["notify.mobile_app_phone", "notify.telegram"])
 
     fs = _make_filters_store(set())
     coordinator = MedicoverCoordinator(hass, entry, mock_client, fs)
     await coordinator._async_update_data()
     await hass.async_block_till_done()
 
-    # Actions go through the legacy mobile_app service, not the entity service.
-    assert len(entity_calls) == 0
     actions = mobile_calls[0].data["data"]["actions"]
     assert "entity_id" not in mobile_calls[0].data
     assert [a["title"] for a in actions] == ["Drzemka (24h)", "Usuń"]
@@ -296,13 +292,13 @@ async def test_notify_payload_includes_actions(hass, mock_client):
     assert actions[0]["action"] == f"{ACTION_SNOOZE_PREFIX}__{base}"
     assert actions[1]["action"] == f"{ACTION_DELETE_PREFIX}__{base}"
     assert actions[1]["destructive"] is True
-    # Legacy service path carries no action payload.
+    # Non-mobile_app legacy service path carries no action payload.
     assert "data" not in legacy_calls[0].data
 
 
 @pytest.mark.asyncio
-async def test_notify_entity_without_mobile_app_has_no_data(hass, mock_client):
-    """A plain notify entity (no mobile_app service) is sent without `data`.
+async def test_notify_entity_has_no_data(hass, mock_client):
+    """A modern notify entity target is sent without `data` (actions impossible).
 
     Regression: the entity `notify.send_message` schema rejects `data`, which
     used to make notifications fail with "extra keys not allowed @ data['data']".
@@ -319,14 +315,28 @@ async def test_notify_entity_without_mobile_app_has_no_data(hass, mock_client):
 
 
 @pytest.mark.asyncio
+async def test_notify_persistent_notification_has_no_data(hass, mock_client):
+    """A persistent_notification target → plain HA panel entry, no action buttons."""
+    calls = async_mock_service(hass, "notify", "persistent_notification")
+    sub = _add_subentry(
+        MockConfigEntry(domain=DOMAIN), notify_target="notify.persistent_notification"
+    )
+
+    await _run_poll(hass, mock_client, sub, seen=set())
+
+    assert len(calls) == 1
+    assert "data" not in calls[0].data
+    assert "dr Jan Nowak" in calls[0].data["message"]
+
+
+@pytest.mark.asyncio
 async def test_notify_action_titles_localized(hass, mock_client):
     """Action titles come from translations: English locale → English titles."""
     hass.config.language = "en"
-    hass.states.async_set("notify.phone", "idle")
     calls = async_mock_service(hass, "notify", "mobile_app_phone")
     entry = MockConfigEntry(domain=DOMAIN, data=MOCK_ENTRY_DATA, title="Jan Kowalski")
     entry.add_to_hass(hass)
-    _add_subentry(entry, notify_target="notify.phone")
+    _add_subentry(entry, notify_target="notify.mobile_app_phone")
 
     coordinator = MedicoverCoordinator(hass, entry, mock_client, _make_filters_store(set()))
     await coordinator._async_update_data()

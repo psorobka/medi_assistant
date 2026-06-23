@@ -196,37 +196,27 @@ class MedicoverCoordinator(DataUpdateCoordinator[dict[str, list[dict[str, Any]]]
             if self.hass.states.get(target) is not None:
                 # Modern notify entity. Its `send_message` schema accepts only
                 # `title`/`message` — passing `data` raises "extra keys not
-                # allowed". Action buttons need the legacy `notify.mobile_app_*`
-                # service, so route there when it exists (mobile_app companion);
-                # otherwise send a plain entity notification without actions.
-                object_id = target.split(".", 1)[1]
-                legacy_service = f"mobile_app_{object_id}"
-                if self.hass.services.has_service("notify", legacy_service):
-                    actions = await self._async_action_buttons(subentry)
-                    await self.hass.services.async_call(
-                        "notify",
-                        legacy_service,
-                        {
-                            "title": title,
-                            "message": message,
-                            "data": {"actions": actions},
-                        },
-                        blocking=False,
-                    )
-                else:
-                    await self.hass.services.async_call(
-                        "notify",
-                        "send_message",
-                        {"entity_id": target, "title": title, "message": message},
-                        blocking=False,
-                    )
+                # allowed", so no action buttons here. Action buttons need the
+                # legacy `notify.mobile_app_*` service, which the user picks as
+                # the target directly (see _notify_target_options).
+                await self.hass.services.async_call(
+                    "notify",
+                    "send_message",
+                    {"entity_id": target, "title": title, "message": message},
+                    blocking=False,
+                )
             else:
-                # Legacy notify service: notify.<service>.
+                # Legacy notify service: notify.<service>. Only mobile_app
+                # services render `data.actions`; everything else (e.g.
+                # persistent_notification, telegram) gets a plain message.
                 service = target.split(".", 1)[1] if "." in target else target
+                payload = {"title": title, "message": message}
+                if service.startswith("mobile_app_"):
+                    payload["data"] = {"actions": await self._async_action_buttons(subentry)}
                 await self.hass.services.async_call(
                     "notify",
                     service,
-                    {"title": title, "message": message},
+                    payload,
                     blocking=False,
                 )
         except Exception as err:  # noqa: BLE001 — notification failure must not break polling

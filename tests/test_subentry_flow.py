@@ -7,9 +7,9 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
-from pytest_homeassistant_custom_component.common import MockConfigEntry
+from pytest_homeassistant_custom_component.common import MockConfigEntry, async_mock_service
 
-from custom_components.medi_assistant.config_flow import _find_name
+from custom_components.medi_assistant.config_flow import _find_name, _notify_target_options
 from custom_components.medi_assistant.const import (
     CONF_CLINIC_ID,
     CONF_DATE_FROM,
@@ -276,6 +276,25 @@ async def test_subentry_flow_stores_notify_target(hass: HomeAssistant):
         "notify.mobile_app_phone",
         "notify.telegram",
     ]
+
+
+def test_notify_target_options_dedupes_mobile_app_entity(hass: HomeAssistant):
+    """A phone with both an entity and a legacy mobile_app service shows once.
+
+    The legacy service (which carries action buttons) wins; its duplicate
+    entity is dropped. Plain entities and other services are kept as-is.
+    """
+    hass.states.async_set("notify.phone", "idle")  # mobile_app entity
+    hass.states.async_set("notify.alexa", "idle")  # plain entity, no legacy twin
+    async_mock_service(hass, "notify", "mobile_app_phone")  # legacy twin of notify.phone
+    async_mock_service(hass, "notify", "telegram")
+
+    values = {o["value"] for o in _notify_target_options(hass)}
+
+    assert "notify.mobile_app_phone" in values
+    assert "notify.phone" not in values  # deduped in favour of the legacy service
+    assert "notify.alexa" in values
+    assert "notify.telegram" in values
 
 
 @pytest.mark.asyncio

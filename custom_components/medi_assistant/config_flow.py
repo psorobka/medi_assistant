@@ -593,11 +593,20 @@ def _last_search_region(entry: ConfigEntry) -> int | None:
 
 
 def _notify_target_options(hass) -> list[SelectOptionDict]:
-    """All notify targets: modern notify.* entities AND legacy notify.* services."""
+    """All notify targets: modern notify.* entities AND legacy notify.* services.
+
+    For a mobile_app phone the companion creates both a modern entity
+    (notify.<x>) and a legacy service (notify.mobile_app_<x>). Only the legacy
+    service carries action buttons, so we drop the duplicate entity and keep the
+    legacy one — the user picks the target that actually supports actions.
+    """
     targets: set[str] = set(hass.states.async_entity_ids("notify"))
     for service in hass.services.async_services().get("notify", {}):
-        if service != "send_message":  # the generic entity service, not a target
-            targets.add(f"notify.{service}")
+        if service == "send_message":  # the generic entity service, not a target
+            continue
+        targets.add(f"notify.{service}")
+        if service.startswith("mobile_app_"):
+            targets.discard(f"notify.{service.removeprefix('mobile_app_')}")
     return [SelectOptionDict(value=t, label=t) for t in sorted(targets)]
 
 

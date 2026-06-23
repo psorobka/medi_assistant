@@ -79,6 +79,9 @@
             "date_from": "Szukaj od daty",
             "date_to": "Szukaj do daty",
             "notify_target": "Powiadomienie (encja lub usługa notify)"
+          },
+          "data_description": {
+            "notify_target": "Wybierz telefon (notify.mobile_app_…), aby dostać push z przyciskami Drzemka/Usuń. Dodaj notify.persistent_notification, aby mieć trwały wpis w panelu Home Assistant (bez przycisków)."
           }
         }
       },
