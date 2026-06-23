@@ -268,10 +268,15 @@ async def test_expired_snooze_notifies_again(hass, mock_client):
 
 @pytest.mark.asyncio
 async def test_notify_payload_includes_actions(hass, mock_client):
-    """Modern notify entity gets Drzemka/Usuń action buttons; legacy service does not."""
+    """A mobile_app entity gets Drzemka/Usuń buttons via its legacy service; others don't.
+
+    The modern `notify.send_message` schema rejects `data`, so action buttons
+    are delivered through the matching `notify.mobile_app_<object_id>` service.
+    """
     hass.config.language = "pl"
     hass.states.async_set("notify.phone", "idle")
     entity_calls = async_mock_service(hass, "notify", "send_message")
+    mobile_calls = async_mock_service(hass, "notify", "mobile_app_phone")
     legacy_calls = async_mock_service(hass, "notify", "telegram")
     entry = MockConfigEntry(domain=DOMAIN, data=MOCK_ENTRY_DATA, title="Jan Kowalski")
     entry.add_to_hass(hass)
@@ -282,7 +287,10 @@ async def test_notify_payload_includes_actions(hass, mock_client):
     await coordinator._async_update_data()
     await hass.async_block_till_done()
 
-    actions = entity_calls[0].data["data"]["actions"]
+    # Actions go through the legacy mobile_app service, not the entity service.
+    assert len(entity_calls) == 0
+    actions = mobile_calls[0].data["data"]["actions"]
+    assert "entity_id" not in mobile_calls[0].data
     assert [a["title"] for a in actions] == ["Drzemka (24h)", "Usuń"]
     base = f"{entry.entry_id}__{sub.subentry_id}"
     assert actions[0]["action"] == f"{ACTION_SNOOZE_PREFIX}__{base}"
@@ -293,11 +301,29 @@ async def test_notify_payload_includes_actions(hass, mock_client):
 
 
 @pytest.mark.asyncio
+async def test_notify_entity_without_mobile_app_has_no_data(hass, mock_client):
+    """A plain notify entity (no mobile_app service) is sent without `data`.
+
+    Regression: the entity `notify.send_message` schema rejects `data`, which
+    used to make notifications fail with "extra keys not allowed @ data['data']".
+    """
+    hass.states.async_set("notify.phone", "idle")
+    calls = async_mock_service(hass, "notify", "send_message")
+    sub = _add_subentry(MockConfigEntry(domain=DOMAIN), notify_target="notify.phone")
+
+    await _run_poll(hass, mock_client, sub, seen=set())
+
+    assert len(calls) == 1
+    assert calls[0].data["entity_id"] == "notify.phone"
+    assert "data" not in calls[0].data
+
+
+@pytest.mark.asyncio
 async def test_notify_action_titles_localized(hass, mock_client):
     """Action titles come from translations: English locale → English titles."""
     hass.config.language = "en"
     hass.states.async_set("notify.phone", "idle")
-    calls = async_mock_service(hass, "notify", "send_message")
+    calls = async_mock_service(hass, "notify", "mobile_app_phone")
     entry = MockConfigEntry(domain=DOMAIN, data=MOCK_ENTRY_DATA, title="Jan Kowalski")
     entry.add_to_hass(hass)
     _add_subentry(entry, notify_target="notify.phone")

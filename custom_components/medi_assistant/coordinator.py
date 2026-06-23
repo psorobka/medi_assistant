@@ -194,20 +194,32 @@ class MedicoverCoordinator(DataUpdateCoordinator[dict[str, list[dict[str, Any]]]
         )
         try:
             if self.hass.states.get(target) is not None:
-                # Modern notify entity. Attach actionable buttons (rendered by
-                # the mobile_app companion; ignored by other notify entities).
-                actions = await self._async_action_buttons(subentry)
-                await self.hass.services.async_call(
-                    "notify",
-                    "send_message",
-                    {
-                        "entity_id": target,
-                        "title": title,
-                        "message": message,
-                        "data": {"actions": actions},
-                    },
-                    blocking=False,
-                )
+                # Modern notify entity. Its `send_message` schema accepts only
+                # `title`/`message` — passing `data` raises "extra keys not
+                # allowed". Action buttons need the legacy `notify.mobile_app_*`
+                # service, so route there when it exists (mobile_app companion);
+                # otherwise send a plain entity notification without actions.
+                object_id = target.split(".", 1)[1]
+                legacy_service = f"mobile_app_{object_id}"
+                if self.hass.services.has_service("notify", legacy_service):
+                    actions = await self._async_action_buttons(subentry)
+                    await self.hass.services.async_call(
+                        "notify",
+                        legacy_service,
+                        {
+                            "title": title,
+                            "message": message,
+                            "data": {"actions": actions},
+                        },
+                        blocking=False,
+                    )
+                else:
+                    await self.hass.services.async_call(
+                        "notify",
+                        "send_message",
+                        {"entity_id": target, "title": title, "message": message},
+                        blocking=False,
+                    )
             else:
                 # Legacy notify service: notify.<service>.
                 service = target.split(".", 1)[1] if "." in target else target
