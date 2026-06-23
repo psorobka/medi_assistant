@@ -278,23 +278,26 @@ async def test_subentry_flow_stores_notify_target(hass: HomeAssistant):
     ]
 
 
-def test_notify_target_options_dedupes_mobile_app_entity(hass: HomeAssistant):
-    """A phone with both an entity and a legacy mobile_app service shows once.
+def test_notify_target_options_lists_only_legacy_services(hass: HomeAssistant):
+    """Only legacy notify.* services are listed; modern entities are omitted.
 
-    The legacy service (which carries action buttons) wins; its duplicate
-    entity is dropped. Plain entities and other services are kept as-is.
+    The legacy service is the one that carries action buttons, so for a phone we
+    show notify.mobile_app_* (not the duplicate notify.<x> entity).
     """
-    hass.states.async_set("notify.phone", "idle")  # mobile_app entity
-    hass.states.async_set("notify.alexa", "idle")  # plain entity, no legacy twin
-    async_mock_service(hass, "notify", "mobile_app_phone")  # legacy twin of notify.phone
+    hass.states.async_set("notify.phone", "idle")  # modern entity → omitted
+    hass.states.async_set("notify.alexa", "idle")  # modern entity → omitted
+    async_mock_service(hass, "notify", "mobile_app_phone")
     async_mock_service(hass, "notify", "telegram")
+    async_mock_service(hass, "notify", "persistent_notification")
 
     values = {o["value"] for o in _notify_target_options(hass)}
 
     assert "notify.mobile_app_phone" in values
-    assert "notify.phone" not in values  # deduped in favour of the legacy service
-    assert "notify.alexa" in values
     assert "notify.telegram" in values
+    assert "notify.persistent_notification" in values
+    # Modern entities are not listed (only reachable via custom_value).
+    assert "notify.phone" not in values
+    assert "notify.alexa" not in values
 
 
 @pytest.mark.asyncio
