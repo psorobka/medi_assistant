@@ -284,20 +284,23 @@ def test_notify_target_options_lists_only_legacy_services(hass: HomeAssistant):
     The legacy service is the one that carries action buttons, so for a phone we
     show notify.mobile_app_* (not the duplicate notify.<x> entity).
     """
-    hass.states.async_set("notify.phone", "idle")  # modern entity → omitted
-    hass.states.async_set("notify.alexa", "idle")  # modern entity → omitted
+    hass.config.language = "pl"
+    # mobile_app entity → omitted from list, but its friendly_name labels the service
+    hass.states.async_set("notify.phone", "idle", {"friendly_name": "Telefon Piotra"})
     async_mock_service(hass, "notify", "mobile_app_phone")
+    async_mock_service(hass, "notify", "mobile_app_tablet")  # no twin entity → prettified
     async_mock_service(hass, "notify", "telegram")
     async_mock_service(hass, "notify", "persistent_notification")
 
-    values = {o["value"] for o in _notify_target_options(hass)}
+    options = {o["value"]: o["label"] for o in _notify_target_options(hass)}
 
-    assert "notify.mobile_app_phone" in values
-    assert "notify.telegram" in values
-    assert "notify.persistent_notification" in values
-    # Modern entities are not listed (only reachable via custom_value).
-    assert "notify.phone" not in values
-    assert "notify.alexa" not in values
+    # Only legacy services are listed (modern entity notify.phone is omitted).
+    assert "notify.phone" not in options
+    # Friendly labels, technical value preserved.
+    assert options["notify.mobile_app_phone"] == "Telefon Piotra"  # from twin entity
+    assert options["notify.mobile_app_tablet"] == "Tablet"  # prettified fallback
+    assert options["notify.telegram"] == "Telegram"
+    assert options["notify.persistent_notification"] == "Powiadomienie w Home Assistant"
 
 
 @pytest.mark.asyncio

@@ -601,12 +601,30 @@ def _notify_target_options(hass) -> list[SelectOptionDict]:
     (incl. persistent_notification, telegram, …). Modern notify entities are
     omitted from the list but still reachable via custom_value if needed.
     """
-    targets = [
-        f"notify.{service}"
+    return [
+        SelectOptionDict(value=f"notify.{service}", label=_notify_label(hass, service))
         for service in hass.services.async_services().get("notify", {})
         if service != "send_message"  # the generic entity service, not a target
     ]
-    return [SelectOptionDict(value=t, label=t) for t in sorted(targets)]
+
+
+def _notify_label(hass, service: str) -> str:
+    """Human-friendly label for a legacy notify.<service> id (dropdown display).
+
+    The value stays the technical id; only the label is prettified.
+    """
+    if service == "persistent_notification":
+        pl = (hass.config.language or "").startswith("pl")
+        return "Powiadomienie w Home Assistant" if pl else "Home Assistant notification"
+    if service.startswith("mobile_app_"):
+        obj = service.removeprefix("mobile_app_")
+        # The companion's notify entity carries the device's friendly name; use it
+        # when the slug matches, otherwise fall back to a prettified suffix.
+        state = hass.states.get(f"notify.{obj}")
+        if state and (friendly := state.attributes.get("friendly_name")):
+            return friendly
+        return obj.replace("_", " ").title()
+    return service.replace("_", " ").title()
 
 
 def _id_value_selector(items: list[dict[str, Any]]) -> SelectSelector:
