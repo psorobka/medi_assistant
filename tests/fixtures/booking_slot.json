@@ -1,0 +1,9 @@
+{
+  "appointmentDate": "2099-07-01T09:00:00",
+  "clinic": {"id": "11", "name": "Placówka testowa"},
+  "doctor": {"id": "22", "name": "Lekarz testowy"},
+  "specialty": {"id": "10", "name": "Specjalność testowa"},
+  "visitType": "Center",
+  "isOverbooking": false,
+  "bookingString": "synthetic-slot-handle"
+}

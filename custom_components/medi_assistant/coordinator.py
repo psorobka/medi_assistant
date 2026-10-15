@@ -10,7 +10,9 @@ from homeassistant.core import Event, HomeAssistant
 from homeassistant.helpers.translation import async_get_translations
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
+from .booking import BookingManager
 from .const import (
+    ACTION_BOOK_PREFIX,
     ACTION_DELETE_PREFIX,
     ACTION_SNOOZE_PREFIX,
     CONF_NOTIFY_TARGET,
@@ -32,7 +34,11 @@ _LOGGER = logging.getLogger(__name__)
 _MAX_NOTIFY_LINES = 15
 
 # Fallbacks used if the translation cache has no entry for the user's language.
-_DEFAULT_ACTION_TITLES = {"action_snooze": "Drzemka (24h)", "action_delete": "Usuń"}
+_DEFAULT_ACTION_TITLES = {
+    "action_snooze": "Drzemka (24h)",
+    "action_delete": "Usuń",
+    "action_book": "Zarezerwuj",
+}
 
 
 class MedicoverCoordinator(DataUpdateCoordinator[dict[str, list[dict[str, Any]]]]):
@@ -55,6 +61,7 @@ class MedicoverCoordinator(DataUpdateCoordinator[dict[str, list[dict[str, Any]]]
         self._entry = entry
         self._client = client
         self._filters_store = filters_store
+        self.booking = BookingManager(hass, client, entry)
 
     async def _async_update_data(self) -> dict[str, list[dict[str, Any]]]:
         auth = self._client._auth
@@ -179,6 +186,7 @@ class MedicoverCoordinator(DataUpdateCoordinator[dict[str, list[dict[str, Any]]]
         Supports both modern notify entities (notify.send_message with
         entity_id) and legacy notify services (notify.<service> with message).
         """
+        new_slots = sorted(new_slots, key=lambda slot: slot.get("appointmentDate") or "")
         lines = [_format_slot(s) for s in new_slots]
         shown = lines[:_MAX_NOTIFY_LINES]
         body = "\n".join(shown)
@@ -212,7 +220,13 @@ class MedicoverCoordinator(DataUpdateCoordinator[dict[str, list[dict[str, Any]]]
                 service = target.split(".", 1)[1] if "." in target else target
                 payload = {"title": title, "message": message}
                 if service.startswith("mobile_app_"):
-                    payload["data"] = {"actions": await self._async_action_buttons(subentry)}
+                    actions = await self._async_action_buttons(subentry, new_slots)
+                    if actions and actions[0]["action"].startswith(ACTION_BOOK_PREFIX + "__"):
+                        payload["message"] += "\n„Zarezerwuj” dotyczy pierwszego terminu powyżej."
+                    payload["data"] = {
+                        "actions": actions,
+                        "tag": f"medi_booking_{self._entry.entry_id}_{subentry.subentry_id}",
+                    }
                 await self.hass.services.async_call(
                     "notify",
                     service,
@@ -227,7 +241,9 @@ class MedicoverCoordinator(DataUpdateCoordinator[dict[str, list[dict[str, Any]]]
                 err,
             )
 
-    async def _async_action_buttons(self, subentry: Any) -> list[dict[str, Any]]:
+    async def _async_action_buttons(
+        self, subentry: Any, new_slots: list[dict[str, Any]] | None = None
+    ) -> list[dict[str, Any]]:
         """Build the Drzemka/Usuń action buttons with localized titles.
 
         Titles come from the integration's `common` translations (user's HA
@@ -241,7 +257,7 @@ class MedicoverCoordinator(DataUpdateCoordinator[dict[str, list[dict[str, Any]]]
             return translations.get(f"component.{DOMAIN}.common.{key}", _DEFAULT_ACTION_TITLES[key])
 
         base = f"{self._entry.entry_id}__{subentry.subentry_id}"
-        return [
+        actions = [
             {"action": f"{ACTION_SNOOZE_PREFIX}__{base}", "title": _title("action_snooze")},
             {
                 "action": f"{ACTION_DELETE_PREFIX}__{base}",
@@ -250,6 +266,58 @@ class MedicoverCoordinator(DataUpdateCoordinator[dict[str, list[dict[str, Any]]]
             },
         ]
 
+        if new_slots:
+            # One unambiguous button for the first displayed appointment.
+            offer = self.booking.public_slots(subentry.subentry_id, new_slots[:1])[0]
+            if booking_id := offer.get("booking_id"):
+                actions.insert(
+                    0,
+                    {
+                        "action": f"{ACTION_BOOK_PREFIX}__{base}__{booking_id}",
+                        "title": _title("action_book"),
+                    },
+                )
+        return actions
+
+    async def _async_handle_booking_action(self, action: str) -> None:
+        parts = action.split("__")
+        if len(parts) != 4:
+            return
+        _, entry_id, subentry_id, booking_id = parts
+        subentry = self._entry.subentries.get(subentry_id)
+        if (
+            entry_id != self._entry.entry_id
+            or subentry is None
+            or (
+                self.booking.owns(booking_id)
+                and not self.booking.owns_search(booking_id, subentry_id)
+            )
+        ):
+            return
+        outcome = await self.booking.async_book(booking_id)
+        if outcome["success"]:
+            self.hass.async_create_task(self.async_request_refresh())
+        targets = subentry.data.get(CONF_NOTIFY_TARGET) or []
+        if isinstance(targets, str):
+            targets = [targets]
+        for target in targets:
+            payload = {
+                "title": f"{self._entry.title} — {subentry.title}",
+                "message": outcome["message"],
+            }
+            try:
+                if self.hass.states.get(target) is not None:
+                    await self.hass.services.async_call(
+                        "notify", "send_message", {"entity_id": target, **payload}, blocking=False
+                    )
+                else:
+                    service = target.split(".", 1)[-1]
+                    if service.startswith("mobile_app_"):
+                        payload["data"] = {"tag": f"medi_booking_{entry_id}_{subentry_id}"}
+                    await self.hass.services.async_call("notify", service, payload, blocking=False)
+            except Exception as err:
+                _LOGGER.warning("Could not deliver booking result (%s)", type(err).__name__)
+
     async def async_handle_notification_action(self, event: Event) -> None:
         """Handle a tap on a notification action button (Drzemka / Usuń).
 
@@ -257,6 +325,11 @@ class MedicoverCoordinator(DataUpdateCoordinator[dict[str, list[dict[str, Any]]]
         The event is global, so we ignore actions for other accounts/searches.
         """
         action = event.data.get("action", "")
+        if not isinstance(action, str):
+            return
+        if action.startswith(ACTION_BOOK_PREFIX + "__"):
+            await self._async_handle_booking_action(action)
+            return
         parts = action.split("__")
         if len(parts) != 3:
             return

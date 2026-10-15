@@ -24,6 +24,8 @@ from .const import (
     SUBENTRY_TYPE_SEARCH,
 )
 from .coordinator import MedicoverCoordinator
+from .booking import BookingManager
+from .services import async_setup_booking_service
 from .exceptions import AuthError, InvalidGrant, MfaRequired
 from .store import FiltersStore
 from .token_keepalive import TokenKeepAlive
@@ -41,6 +43,7 @@ class MedicoverRuntimeData:
     filters_store: FiltersStore
     auth_session: aiohttp.ClientSession
     keepalive: TokenKeepAlive
+    booking: BookingManager
 
 
 type MedicoverConfigEntry = ConfigEntry[MedicoverRuntimeData]
@@ -113,8 +116,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: MedicoverConfigEntry) ->
         filters_store=filters_store,
         auth_session=auth_session,
         keepalive=keepalive,
+        booking=coordinator.booking,
     )
 
+    async_setup_booking_service(hass)
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     # Start the keep-alive only after platforms set up — if the forward raised,

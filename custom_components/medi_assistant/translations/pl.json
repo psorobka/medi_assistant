@@ -103,6 +103,29 @@
   },
   "common": {
     "action_snooze": "Drzemka (24h)",
-    "action_delete": "Usuń"
+    "action_delete": "Usuń",
+    "action_book": "Zarezerwuj"
+  },
+  "services": {
+    "list_booking_offers": {
+      "name": "Pokaż terminy do rezerwacji",
+      "description": "Wyświetla terminy i identyfikatory do testu rezerwacji bez powiadomień.",
+      "fields": {
+        "entity_id": {
+          "name": "Szukajka Medicover",
+          "description": "Wybierz sensor szukajki."
+        }
+      }
+    },
+    "book_appointment": {
+      "name": "Zarezerwuj wizytę",
+      "description": "Rezerwuje wybrany termin i zwraca wynik. Wymaga aktualnego booking_id.",
+      "fields": {
+        "booking_id": {
+          "name": "Identyfikator rezerwacji",
+          "description": "booking_id z akcji Pokaż terminy do rezerwacji lub atrybutu appointments sensora."
+        }
+      }
+    }
   }
 }

@@ -1,0 +1,22 @@
+list_booking_offers:
+  name: Pokaż terminy do rezerwacji
+  description: Wyświetla terminy i ich booking_id do ręcznego testu rezerwacji bez powiadomień. Nie rezerwuje wizyty.
+  fields:
+    entity_id:
+      name: Szukajka Medicover
+      required: true
+      selector:
+        entity:
+          filter:
+            - integration: medicover
+              domain: sensor
+book_appointment:
+  name: Zarezerwuj wizytę
+  description: Rezerwuje dokładnie wskazany termin. Identyfikator z sensora wygasa po 30 minutach lub po restarcie HA. Zwraca wynik do automatyzacji.
+  fields:
+    booking_id:
+      name: Identyfikator rezerwacji
+      description: Pole booking_id z atrybutu appointments sensora Medicover.
+      required: true
+      selector:
+        text:

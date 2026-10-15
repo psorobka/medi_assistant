@@ -103,6 +103,29 @@
   },
   "common": {
     "action_snooze": "Snooze (24h)",
-    "action_delete": "Delete"
+    "action_delete": "Delete",
+    "action_book": "Book"
+  },
+  "services": {
+    "list_booking_offers": {
+      "name": "Show bookable appointments",
+      "description": "Lists appointments and identifiers for testing booking without notifications.",
+      "fields": {
+        "entity_id": {
+          "name": "Medicover search",
+          "description": "Select a search sensor."
+        }
+      }
+    },
+    "book_appointment": {
+      "name": "Book appointment",
+      "description": "Books the selected appointment and returns the outcome. Requires a current booking_id.",
+      "fields": {
+        "booking_id": {
+          "name": "Booking identifier",
+          "description": "booking_id from Show bookable appointments or the sensor's appointments attribute."
+        }
+      }
+    }
   }
 }

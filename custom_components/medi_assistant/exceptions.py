@@ -20,3 +20,11 @@ class InvalidGrant(Exception):
 
 class ApiError(Exception):
     """Generic Medicover API error."""
+
+
+class BookingError(ApiError):
+    """Sanitized booking failure, without medical data or server response text."""
+
+    def __init__(self, code: str) -> None:
+        super().__init__(code)
+        self.code = code
