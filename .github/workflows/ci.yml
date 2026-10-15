@@ -59,6 +59,31 @@ jobs:
       - run: pnpm install --frozen-lockfile --ignore-scripts
       - run: pnpm test:frontend
 
+  browser:
+    name: Chromium card tests (desktop and phone)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+      - uses: pnpm/action-setup@v4
+        with:
+          version: "11.25.0"
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm test:browser
+      - name: Upload synthetic browser failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: card-browser-failure
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+
   hassfest:
     name: Hassfest (manifest validation)
     runs-on: ubuntu-latest

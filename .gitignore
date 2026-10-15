@@ -22,3 +22,7 @@ htmlcov/
 .uv-cache/
 
 node_modules/
+
+# Synthetic browser test artifacts
+playwright-report/
+test-results/
