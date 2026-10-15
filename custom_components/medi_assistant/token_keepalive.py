@@ -76,11 +76,7 @@ class TokenKeepAlive:
     @callback
     def _schedule(self, delay: float) -> None:
         self._unsub = async_call_later(self._hass, delay, self._async_refresh)
-        _LOGGER.debug(
-            "Token keep-alive for '%s': next refresh in %.0fs",
-            self._entry.title,
-            delay,
-        )
+        _LOGGER.debug("Token keep-alive: next refresh in %.0fs", delay)
 
     def _next_delay(self) -> float:
         expires_at = self._auth._expires_at
@@ -97,9 +93,7 @@ class TokenKeepAlive:
             if self._auth_failures < MAX_AUTH_RETRIES:
                 retry_delay = AUTH_RETRY_DELAY * self._auth_failures
                 _LOGGER.warning(
-                    "Refresh + silent re-login failed for '%s' (%s, attempt %d/%d) "
-                    "— retrying in %.0fs",
-                    self._entry.title,
+                    "Refresh/re-login failed (%s, attempt %d/%d), retrying in %.0fs",
                     type(err).__name__,
                     self._auth_failures,
                     MAX_AUTH_RETRIES,
@@ -108,9 +102,7 @@ class TokenKeepAlive:
                 self._schedule(retry_delay)
                 return
             _LOGGER.warning(
-                "Refresh + silent re-login failed for '%s' (%s) after %d attempts "
-                "— starting reauth",
-                self._entry.title,
+                "Refresh/re-login failed (%s) after %d attempts, starting reauth",
                 type(err).__name__,
                 self._auth_failures,
             )
@@ -119,10 +111,7 @@ class TokenKeepAlive:
             return
         except Exception as err:  # noqa: BLE001 — transient errors get a retry
             _LOGGER.warning(
-                "Token keep-alive refresh failed for '%s': %s — retrying in %.0fs",
-                self._entry.title,
-                err,
-                RETRY_DELAY,
+                "Token keep-alive failed (%s), retrying in %.0fs", type(err).__name__, RETRY_DELAY
             )
             self._schedule(RETRY_DELAY)
             return

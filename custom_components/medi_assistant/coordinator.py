@@ -68,14 +68,11 @@ class MedicoverCoordinator(DataUpdateCoordinator[dict[str, list[dict[str, Any]]]
         expires_at = auth._expires_at
         secs_left = (expires_at - int(time.time())) if expires_at else None
         _LOGGER.debug(
-            "Poll start for '%s': token valid=%s, secs_remaining=%s",
-            self._entry.title,
-            auth.is_token_valid(),
-            secs_left,
+            "Poll start: token valid=%s, secs_remaining=%s", auth.is_token_valid(), secs_left
         )
         try:
             if not auth.is_token_valid():
-                _LOGGER.debug("Token expired for '%s', refreshing before poll", self._entry.title)
+                _LOGGER.debug("Token expired, refreshing before poll")
                 await auth.async_refresh_or_relogin()
         except (InvalidGrant, MfaRequired, AuthError) as err:
             # Don't pop reauth on a single poll-time hiccup. The keep-alive is the
@@ -83,32 +80,17 @@ class MedicoverCoordinator(DataUpdateCoordinator[dict[str, list[dict[str, Any]]]
             # cookies before re-login); here we just fail this poll transiently.
             raise UpdateFailed(f"Token refresh failed ({type(err).__name__})") from err
         except Exception as err:
-            raise UpdateFailed(f"Token refresh failed: {err}") from err
+            raise UpdateFailed(f"Token refresh failed ({type(err).__name__})") from err
 
         searches = [
             s for s in self._entry.subentries.values() if s.subentry_type == SUBENTRY_TYPE_SEARCH
         ]
-        _LOGGER.info(
-            "Polling %d search(es) for account '%s'",
-            len(searches),
-            self._entry.title,
-        )
+        _LOGGER.info("Polling %d search(es)", len(searches))
 
         result: dict[str, list[dict[str, Any]]] = {}
         for subentry in searches:
             data = subentry.data
-            _LOGGER.debug(
-                "Searching '%s': region=%s, specialty=%s, clinic=%s, doctor=%s, "
-                "language=%s, date_from=%s, date_to=%s",
-                subentry.title,
-                data.get("region_name", data["region_id"]),
-                data.get("specialty_name", data["specialty_id"]),
-                data.get("clinic_name", data.get("clinic_id")),
-                data.get("doctor_name", data.get("doctor_id")),
-                data.get("language_id"),
-                data.get("date_from"),
-                data.get("date_to"),
-            )
+            _LOGGER.debug("Searching saved search")
             try:
                 slots = await self._client.async_find_appointments(
                     region=data["region_id"],
@@ -122,23 +104,19 @@ class MedicoverCoordinator(DataUpdateCoordinator[dict[str, list[dict[str, Any]]]
                 )
             except InvalidGrant as err:
                 # Same as above: defer reauth to the keep-alive, fail poll transiently.
-                raise UpdateFailed(f"Token expired for '{subentry.title}'") from err
+                raise UpdateFailed("Token expired during slot fetch") from err
             except ApiError as err:
-                raise UpdateFailed(f"API error for '{subentry.title}': {err}") from err
+                raise UpdateFailed(f"API error ({type(err).__name__})") from err
             except Exception as err:
-                raise UpdateFailed(f"Error fetching slots for '{subentry.title}': {err}") from err
+                raise UpdateFailed(f"Error fetching slots ({type(err).__name__})") from err
 
-            _LOGGER.info(
-                "Search '%s': %d slot(s) found",
-                subentry.title,
-                len(slots),
-            )
+            _LOGGER.info("%d slot(s) found", len(slots))
             if slots:
                 earliest = min(
                     (s.get("appointmentDate", "") for s in slots),
                     default="",
                 )
-                _LOGGER.debug("Search '%s': earliest slot at %s", subentry.title, earliest)
+                _LOGGER.debug("Earliest slot available=%s", bool(earliest))
 
             result[subentry.subentry_id] = slots
 
@@ -194,12 +172,7 @@ class MedicoverCoordinator(DataUpdateCoordinator[dict[str, list[dict[str, Any]]]
             body += f"\n…i {len(lines) - len(shown)} więcej"
         message = f"{len(new_slots)} nowy(ch) termin(ów):\n{body}"
         title = f"{self._entry.title} — {subentry.title}"
-        _LOGGER.info(
-            "Notifying %s: %d new slot(s) for '%s'",
-            target,
-            len(new_slots),
-            subentry.title,
-        )
+        _LOGGER.info("Notifying about %d new slot(s)", len(new_slots))
         try:
             if self.hass.states.get(target) is not None:
                 # Modern notify entity. Its `send_message` schema accepts only
@@ -234,12 +207,7 @@ class MedicoverCoordinator(DataUpdateCoordinator[dict[str, list[dict[str, Any]]]
                     blocking=False,
                 )
         except Exception as err:  # noqa: BLE001 — notification failure must not break polling
-            _LOGGER.warning(
-                "Failed to send notification to %s for '%s': %s",
-                target,
-                subentry.title,
-                err,
-            )
+            _LOGGER.warning("Notification delivery failed (%s)", type(err).__name__)
 
     async def _async_action_buttons(
         self, subentry: Any, new_slots: list[dict[str, Any]] | None = None
@@ -342,15 +310,11 @@ class MedicoverCoordinator(DataUpdateCoordinator[dict[str, list[dict[str, Any]]]
         if prefix == ACTION_SNOOZE_PREFIX:
             until = int(time.time()) + SNOOZE_SECONDS
             await self._filters_store.async_set_snooze(subentry_id, until)
-            _LOGGER.info(
-                "Snoozed search '%s' for 24h via notification action",
-                self._entry.subentries[subentry_id].title,
-            )
+            _LOGGER.info("Search snoozed for 24h via notification action")
         elif prefix == ACTION_DELETE_PREFIX:
-            title = self._entry.subentries[subentry_id].title
             await self._filters_store.async_clear_subentry_state(subentry_id)
             self.hass.config_entries.async_remove_subentry(self._entry, subentry_id)
-            _LOGGER.info("Deleted search '%s' via notification action", title)
+            _LOGGER.info("Search deleted via notification action")
 
 
 def _slot_key(slot: dict[str, Any]) -> str:

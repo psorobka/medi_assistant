@@ -8,7 +8,7 @@ list_booking_offers:
       selector:
         entity:
           filter:
-            - integration: medicover
+            - integration: medi_assistant
               domain: sensor
 book_appointment:
   name: Zarezerwuj wizytę

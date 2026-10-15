@@ -66,3 +66,5 @@ Publiczny kod strony Medicover sprawdzony 2026-10-15:
 
 Testy używają syntetycznych odpowiedzi i nie rezerwują prawdziwych wizyt.
 Test na rzeczywistym koncie wykonuje użytkownik.
+
+Debug integracji jest stale aktywny w tej instancji testowej, także po restarcie. Log znajduje się w ignorowanym katalogu .local-ha/config/home-assistant.log; dostępny jest też przez docker logs medicover-ha-local. Logowanie integracji pomija nazwy kont i szukajek oraz parametry adresów OIDC.

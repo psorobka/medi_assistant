@@ -35,6 +35,9 @@ system_health:
 automation: !include automations.yaml
 logger:
   default: warning
+  logs:
+    custom_components.medi_assistant: debug
+    homeassistant.components.http.auth: debug
 '@ | Set-Content -LiteralPath $configurationPath -Encoding utf8
     '[]' | Set-Content -LiteralPath (Join-Path $configPath 'automations.yaml') -Encoding utf8
 }
@@ -53,6 +56,25 @@ homeassistant:
     - type: homeassistant
 '@
     $localConfiguration = $localConfiguration -replace '(?m)^homeassistant:\r?\n', ($trustedAuth + "`n")
+    Set-Content -LiteralPath $configurationPath -Value $localConfiguration -Encoding utf8
+    $authChanged = $true
+}
+# Debug is persistent for this dedicated local test instance.
+$debugLogger = @'
+logger:
+  default: warning
+  logs:
+    custom_components.medi_assistant: debug
+    homeassistant.components.http.auth: debug
+'@
+$beforeLogging = $localConfiguration
+$loggerMatch = [regex]::Match($localConfiguration, '(?m)^logger:[^\r\n]*(?:\r?\n[ \t]+[^\r\n]*)*')
+if ($loggerMatch.Success) {
+    $localConfiguration = $localConfiguration.Remove($loggerMatch.Index, $loggerMatch.Length).Insert($loggerMatch.Index, $debugLogger)
+} else {
+    $localConfiguration = $localConfiguration.TrimEnd() + "`n" + $debugLogger + "`n"
+}
+if ($localConfiguration -ne $beforeLogging) {
     Set-Content -LiteralPath $configurationPath -Value $localConfiguration -Encoding utf8
     $authChanged = $true
 }

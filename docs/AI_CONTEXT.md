@@ -37,10 +37,12 @@ istniejącego kontenera, żeby nie uruchomić innej kopii. Dane sesji wyłączni
 w ignorowanym `.local-ha/config`. Dostęp lokalny bez logowania jest oparty
 na `trusted_networks`, a nie kopiowaniu sesji z produkcji.
 
-Kontrole końcowe: 193 testy przeszły, pokrycie 94,73% (próg 90%), Ruff check i format,
+Kontrole końcowe: 194 testy przeszły, pokrycie 94,73% (próg 90%), Ruff check i format,
 walidacja lokalnej konfiguracji HA. Hassfest/HACS wymagają CI; nie twierdź,
 że przeszły, jeśli nie uruchomiono workflow. Prawdziwej rezerwacji nie wykonano
 w testach — sprawdza ją użytkownik na swoim koncie.
 
 Przy commicie pomijaj zastaną zmianę `CLAUDE.md`. Nie publikuj ani nie scalaj
 tej gałęzi bez polecenia użytkownika.
+
+Stały debug integracji i HTTP auth jest ustawiany przez launcher także w istniejącej konfiguracji testowej. Komunikaty integracji pomijają nazwy kont, szukajek i parametry OIDC; regresja logowania sprawdza ukrycie kodu autoryzacyjnego. Filtr sensora w services.yaml musi wskazywać domenę medi_assistant.

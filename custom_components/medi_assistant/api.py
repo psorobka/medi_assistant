@@ -208,7 +208,7 @@ class MedicoverAuth:
 
     async def async_login(self, username: str, password: str) -> None:
         """Perform PKCE login. Raises MfaRequired if SMS code needed."""
-        _LOGGER.info("Starting PKCE login for user '%s'", username)
+        _LOGGER.info("Starting PKCE login")
         oidc = await self.async_get_oidc_config()
         authorization_endpoint: str = oidc["authorization_endpoint"]
 
@@ -290,7 +290,11 @@ class MedicoverAuth:
             if not location.startswith("https://"):
                 location = MEDICOVER_LOGIN_URL + location
 
-            _LOGGER.debug("Login redirect %d → %s", count, location)
+            _LOGGER.debug(
+                "Login redirect %d to %s",
+                count,
+                urlparse(location)._replace(query="", fragment="").geturl(),
+            )
 
             if "mfa" in location.lower():
                 _LOGGER.info("MFA challenge detected, waiting for verification code (SMS or email)")
@@ -422,9 +426,7 @@ class MedicoverAuth:
         try:
             data = json.loads(raw)
         except json.JSONDecodeError as err:
-            raise AuthError(
-                f"Token endpoint returned non-JSON (status={status}): {raw[:200]}"
-            ) from err
+            raise AuthError(f"Token endpoint returned non-JSON (status={status})") from err
         if "error" in data:
             err_desc = data.get("error_description", data["error"])
             if data["error"] == "invalid_grant":
@@ -710,17 +712,7 @@ class MedicoverClient:
         if doctor:
             params["DoctorIds"] = doctor
 
-        _LOGGER.debug(
-            "find_appointments: region=%s, specialty=%s, clinic=%s, doctor=%s, "
-            "language=%s, start=%s, end=%s",
-            region,
-            specialty,
-            clinic,
-            doctor,
-            language,
-            start_date,
-            end_date,
-        )
+        _LOGGER.debug("Searching appointment slots")
         data = await self._get(url, params)
         items: list[dict[str, Any]] = data.get("items", [])
 
