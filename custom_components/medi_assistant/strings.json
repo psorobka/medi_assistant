@@ -103,6 +103,57 @@
   },
   "common": {
     "action_snooze": "Drzemka (24h)",
-    "action_delete": "Usuń"
+    "action_delete": "Usuń",
+    "action_book": "Zarezerwuj"
+  },
+  "services": {
+    "list_booking_offers": {
+      "name": "Pokaż terminy do rezerwacji",
+      "description": "Wyświetla szukajki wszystkich kont i znalezione terminy. Opcjonalnie wybierz jedną szukajkę.",
+      "fields": {
+        "entity_id": {
+          "name": "Szukajka Medicover",
+          "description": "Opcjonalnie: wybierz jedną szukajkę."
+        },
+        "refresh": {
+          "name": "Odśwież wyniki szukajek",
+          "description": "Pobiera nowe wyniki dla listy wszystkich szukajek."
+        }
+      }
+    },
+    "book_appointment": {
+      "name": "Zarezerwuj wizytę",
+      "description": "Rezerwuje wybrany termin i zwraca wynik. Wymaga aktualnego booking_id.",
+      "fields": {
+        "booking_id": {
+          "name": "Identyfikator rezerwacji",
+          "description": "booking_id z akcji Pokaż terminy do rezerwacji lub atrybutu appointments sensora."
+        }
+      }
+    },
+    "list_booked_appointments": {
+      "name": "Pokaż zarezerwowane wizyty",
+      "description": "Wyświetla zaplanowane wizyty wszystkich kont. Opcjonalnie wybierz szukajkę, aby ograniczyć wynik do jej konta.",
+      "fields": {
+        "entity_id": {
+          "name": "Szukajka konta Medicover",
+          "description": "Opcjonalnie: wybierz szukajkę, aby pokazać wizyty tylko jej konta."
+        }
+      }
+    },
+    "cancel_appointment": {
+      "name": "Odwołaj wizytę",
+      "description": "Odwołuje wskazaną wizytę. Wymaga cancellation_id ważnego przez 30 minut lub do restartu HA.",
+      "fields": {
+        "cancellation_id": {
+          "name": "Identyfikator odwołania",
+          "description": "cancellation_id z akcji Pokaż zarezerwowane wizyty."
+        },
+        "confirm_late_cancellation": {
+          "name": "Potwierdzam późne odwołanie",
+          "description": "Włącz po sprawdzeniu warunków późnego odwołania wizyty w Medicover."
+        }
+      }
+    }
   }
 }

@@ -1,5 +1,5 @@
 pytest
 pytest-asyncio
 pytest-cov
-pytest-homeassistant-custom-component
+pytest-homeassistant-custom-component==0.13.301  # Home Assistant 2025.12.4 / Python 3.13
 aioresponses>=0.7.8

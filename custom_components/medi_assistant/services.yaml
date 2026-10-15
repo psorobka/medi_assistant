@@ -1,0 +1,56 @@
+list_booking_offers:
+  name: Pokaż terminy do rezerwacji
+  description: Wyświetla szukajki wszystkich kont i znalezione terminy. Opcjonalnie wybierz jedną szukajkę.
+  fields:
+    entity_id:
+      name: Szukajka Medicover
+      required: false
+      selector:
+        entity:
+          filter:
+            - integration: medi_assistant
+              domain: sensor
+    refresh:
+      name: Odśwież wyniki szukajek
+      description: Pobiera nowe wyniki dla listy wszystkich szukajek.
+      default: false
+      selector:
+        boolean:
+book_appointment:
+  name: Zarezerwuj wizytę
+  description: Rezerwuje dokładnie wskazany termin. Identyfikator z sensora wygasa po 30 minutach lub po restarcie HA. Zwraca wynik do automatyzacji.
+  fields:
+    booking_id:
+      name: Identyfikator rezerwacji
+      description: Pole booking_id z atrybutu appointments sensora Medicover.
+      required: true
+      selector:
+        text:
+
+list_booked_appointments:
+  name: Pokaż zarezerwowane wizyty
+  description: Wyświetla zaplanowane wizyty wszystkich kont. Opcjonalnie wybierz szukajkę, aby ograniczyć wynik do jej konta.
+  fields:
+    entity_id:
+      name: Szukajka konta Medicover
+      required: false
+      selector:
+        entity:
+          filter:
+            - integration: medi_assistant
+              domain: sensor
+cancel_appointment:
+  name: Odwołaj wizytę
+  description: Odwołuje wskazaną wizytę. Wymaga cancellation_id z listy zarezerwowanych wizyt, ważnego przez 30 minut lub do restartu HA.
+  fields:
+    cancellation_id:
+      name: Identyfikator odwołania
+      required: true
+      selector:
+        text:
+    confirm_late_cancellation:
+      name: Potwierdzam późne odwołanie
+      description: Włącz po sprawdzeniu warunków późnego odwołania wizyty w Medicover.
+      default: false
+      selector:
+        boolean:

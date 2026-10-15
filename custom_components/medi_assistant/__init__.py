@@ -11,6 +11,7 @@ from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers import config_validation as cv
 
 from .api import MedicoverAuth, MedicoverClient, _DEFAULT_UA
 from .const import (
@@ -18,17 +19,23 @@ from .const import (
     CONF_SCAN_INTERVAL,
     CONF_USERNAME,
     DEFAULT_SCAN_INTERVAL,
+    DOMAIN,
     ENTRY_DEVICE_ID,
     ENTRY_DEVICE_UA,
     NOTIFY_ACTION_EVENT,
     SUBENTRY_TYPE_SEARCH,
 )
 from .coordinator import MedicoverCoordinator
+from .booking import BookingManager
+from .services import async_setup_booking_service
+from .frontend import async_setup_card
 from .exceptions import AuthError, InvalidGrant, MfaRequired
 from .store import FiltersStore
 from .token_keepalive import TokenKeepAlive
 
 _LOGGER = logging.getLogger(__name__)
+
+CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 PLATFORMS = [Platform.SENSOR, Platform.BUTTON]
 
@@ -41,13 +48,18 @@ class MedicoverRuntimeData:
     filters_store: FiltersStore
     auth_session: aiohttp.ClientSession
     keepalive: TokenKeepAlive
+    booking: BookingManager
 
 
 type MedicoverConfigEntry = ConfigEntry[MedicoverRuntimeData]
 
 
+async def async_setup(hass: HomeAssistant, config: dict) -> bool:
+    return await async_setup_card(hass)
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: MedicoverConfigEntry) -> bool:
-    _LOGGER.debug("Setting up Medicover entry '%s' (entry_id=%s)", entry.title, entry.entry_id)
+    _LOGGER.debug("Setting up Medicover account")
     device_id = entry.data.get(ENTRY_DEVICE_ID, "")
     device_ua = entry.data.get(ENTRY_DEVICE_UA, _DEFAULT_UA)
 
@@ -74,7 +86,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: MedicoverConfigEntry) ->
 
     try:
         if not auth.is_token_valid():
-            _LOGGER.debug("Access token expired for '%s', refreshing", entry.title)
+            _LOGGER.debug("Access token expired, refreshing")
             # Self-heal across restarts: if the refresh token died during downtime,
             # silently re-login on the trusted device instead of forcing reauth.
             await auth.async_refresh_or_relogin()
@@ -113,8 +125,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: MedicoverConfigEntry) ->
         filters_store=filters_store,
         auth_session=auth_session,
         keepalive=keepalive,
+        booking=coordinator.booking,
     )
 
+    async_setup_booking_service(hass)
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     # Start the keep-alive only after platforms set up — if the forward raised,
@@ -132,11 +146,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: MedicoverConfigEntry) ->
     n_searches = sum(
         1 for s in entry.subentries.values() if s.subentry_type == SUBENTRY_TYPE_SEARCH
     )
-    _LOGGER.info(
-        "Medicover account '%s' ready — %d search(es) configured",
-        entry.title,
-        n_searches,
-    )
+    _LOGGER.info("Medicover account ready: %d search(es)", n_searches)
     return True
 
 
@@ -159,7 +169,7 @@ async def _async_update_listener(hass: HomeAssistant, entry: MedicoverConfigEntr
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: MedicoverConfigEntry) -> bool:
-    _LOGGER.debug("Unloading Medicover entry '%s'", entry.title)
+    _LOGGER.debug("Unloading Medicover account")
     unloaded = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if unloaded:
         runtime_data: MedicoverRuntimeData = entry.runtime_data

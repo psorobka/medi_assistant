@@ -1,0 +1,11 @@
+{
+  "name": "medi-assistant-card-tests",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test:frontend": "node --test tests/frontend/*.test.mjs"
+  },
+  "devDependencies": {
+    "happy-dom": "21.0.1"
+  }
+}

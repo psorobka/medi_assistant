@@ -45,6 +45,20 @@ jobs:
             coverage report --format=markdown
           } >> "$GITHUB_STEP_SUMMARY"
 
+  frontend:
+    name: Appointments card interactions
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+      - uses: pnpm/action-setup@v4
+        with:
+          version: "11.25.0"
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - run: pnpm test:frontend
+
   hassfest:
     name: Hassfest (manifest validation)
     runs-on: ubuntu-latest

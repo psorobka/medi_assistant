@@ -112,6 +112,8 @@ class MedicoverSearchSensor(CoordinatorEntity[MedicoverCoordinator], SensorEntit
         soonest = sorted(slots, key=lambda s: s.get("appointmentDate") or "")[
             :_MAX_ATTR_APPOINTMENTS
         ]
+        if any(slot.get("bookingString") for slot in soonest):
+            soonest = self.coordinator.booking.public_slots(self._subentry.subentry_id, soonest)
         return {
             "count": len(slots),
             "appointments": _format_appointments(soonest),
@@ -151,6 +153,7 @@ def _format_appointments(slots: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "doctor": doctor,
                 "specialty": specialty,
                 "languages": langs,
+                **({"booking_id": slot["booking_id"]} if "booking_id" in slot else {}),
             }
         )
     return result

@@ -13,7 +13,7 @@ import time
 import uuid
 from collections.abc import Callable, Coroutine
 from typing import Any
-from urllib.parse import parse_qs, quote_plus, unquote_plus, urlparse
+from urllib.parse import parse_qs, quote, quote_plus, unquote_plus, urlparse
 
 import aiohttp
 from yarl import URL as _YarlURL
@@ -30,7 +30,7 @@ from .const import (
     MEDICOVER_MAIN_URL,
     OIDC_DISCOVERY_URL,
 )
-from .exceptions import ApiError, AuthError, InvalidGrant, MfaRequired
+from .exceptions import ApiError, AuthError, BookingError, InvalidGrant, MfaRequired
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -208,7 +208,7 @@ class MedicoverAuth:
 
     async def async_login(self, username: str, password: str) -> None:
         """Perform PKCE login. Raises MfaRequired if SMS code needed."""
-        _LOGGER.info("Starting PKCE login for user '%s'", username)
+        _LOGGER.info("Starting PKCE login")
         oidc = await self.async_get_oidc_config()
         authorization_endpoint: str = oidc["authorization_endpoint"]
 
@@ -290,7 +290,11 @@ class MedicoverAuth:
             if not location.startswith("https://"):
                 location = MEDICOVER_LOGIN_URL + location
 
-            _LOGGER.debug("Login redirect %d → %s", count, location)
+            _LOGGER.debug(
+                "Login redirect %d to %s",
+                count,
+                urlparse(location)._replace(query="", fragment="").geturl(),
+            )
 
             if "mfa" in location.lower():
                 _LOGGER.info("MFA challenge detected, waiting for verification code (SMS or email)")
@@ -422,9 +426,7 @@ class MedicoverAuth:
         try:
             data = json.loads(raw)
         except json.JSONDecodeError as err:
-            raise AuthError(
-                f"Token endpoint returned non-JSON (status={status}): {raw[:200]}"
-            ) from err
+            raise AuthError(f"Token endpoint returned non-JSON (status={status})") from err
         if "error" in data:
             err_desc = data.get("error_description", data["error"])
             if data["error"] == "invalid_grant":
@@ -529,6 +531,178 @@ class MedicoverClient:
                 return await resp.json(content_type=None)
         raise ApiError("personal-data request failed")
 
+    async def _async_appointment_write(
+        self, path: str, payload: dict[str, Any] | None = None, *, method: str = "POST"
+    ) -> Any:
+        """Only retry an explicit 401; never replay a possibly committed write."""
+        if not self._auth.is_token_valid():
+            await self._auth.async_refresh_or_relogin()
+        for attempt in range(2):
+            token = self._auth._access_token
+            async with self._session.request(
+                method,
+                f"{MEDICOVER_API_URL}/{path}",
+                headers=self._auth.get_headers(),
+                json=payload,
+                timeout=aiohttp.ClientTimeout(total=30),
+            ) as response:
+                if response.status == 401:
+                    if attempt:
+                        raise InvalidGrant("Booking authorization expired")
+                elif response.status >= 500:
+                    raise BookingError("unknown")
+                elif response.status >= 400:
+                    try:
+                        error = await response.json()
+                    except (ValueError, aiohttp.ContentTypeError):
+                        error = {}
+                    codes = {
+                        "SLOT_NO_LONGER_AVAILABLE": "unavailable",
+                        "error.dayLimitReached": "limit_reached",
+                        "error.futureLimitReached": "limit_reached",
+                        "error.diagnosticLimitReached": "limit_reached",
+                        "error.startTimeBiggerEndTime": "conflict",
+                        "APPOINTMENT_IS_WITHIN_TIME_ANOTHER_APPOINTMENT": "conflict",
+                    }
+                    code = (
+                        "rate_limit"
+                        if response.status == 429
+                        else codes.get(
+                            error.get("title") if isinstance(error, dict) else None,
+                            "rejected",
+                        )
+                    )
+                    raise BookingError(code)
+                else:
+                    return await response.json()
+            if self._auth._access_token == token:
+                await self._auth.async_refresh_or_relogin(force=True)
+        raise InvalidGrant("Booking authorization expired")
+
+    async def async_get_planned_appointments(self) -> list[dict[str, Any]]:
+        """Read all pages; never confuse search availability with booked visits."""
+        appointments = []
+        page = 1
+        while True:
+            data = await self._get(
+                f"{MEDICOVER_API_URL}/appointments/api/person-appointments/appointments",
+                {"AppointmentState": "Planned", "Page": page, "PageSize": 100},
+            )
+            if not isinstance(data, dict) or not isinstance(data.get("items"), list):
+                raise ApiError("Invalid planned appointment response")
+            items = data["items"]
+            if any(not isinstance(item, dict) for item in items):
+                raise ApiError("Invalid planned appointment item")
+            appointments.extend(items)
+            count = data.get("count")
+            if not isinstance(count, int) or count < 0:
+                raise ApiError("Missing planned appointment count")
+            if len(appointments) >= count:
+                return appointments
+            if not items or page >= 100:
+                raise ApiError("Incomplete planned appointment response")
+            page += 1
+
+    async def async_cancel_appointment(self, appointment_id: str) -> None:
+        """Cancel only the exact server-side identifier; no ambiguous retries."""
+        data = await self._async_appointment_write(
+            "appointments/api/person-appointments/appointments/" + quote(appointment_id, safe=""),
+            method="DELETE",
+        )
+        if not isinstance(data, dict) or data.get("status") != "Success":
+            raise BookingError("unknown")
+
+    async def async_book_appointment(self, booking_string: str) -> None:
+        """Book without checkout, payment or automatic selection of another slot."""
+        data = await self._async_appointment_write(
+            "appointments/api/v2/search-appointments/book-appointment",
+            {
+                "bookingString": booking_string,
+                "metadata": {"appointmentSource": "Direct"},
+            },
+        )
+        if not isinstance(data, dict) or not data.get("appointmentId"):
+            raise BookingError("unknown")
+
+    async def async_check_booking(self, slot: dict[str, Any]) -> None:
+        """Fail closed if the portal requires payment or additional confirmations."""
+        if (
+            not slot.get("bookingString")
+            or slot.get("isOverbooking")
+            or slot.get("serviceId")
+            or slot.get("visitType") != "Center"
+            or slot.get("visitVariant", "Standard") != "Standard"
+            or not all((slot.get(key) or {}).get("id") for key in ("clinic", "doctor", "specialty"))
+        ):
+            raise BookingError("unsupported")
+        prices = await self._async_appointment_write(
+            "payment-gateway/api/v2/visit-prices",
+            {
+                "visitDate": slot["appointmentDate"],
+                "visitVariant": "Standard",
+                "visitDetails": [
+                    {
+                        "clinicId": slot["clinic"]["id"],
+                        "specialtyId": slot["specialty"]["id"],
+                        "doctorId": slot["doctor"]["id"],
+                    }
+                ],
+            },
+        )
+        if not isinstance(prices, list) or len(prices) != 1:
+            raise BookingError("preflight_failed")
+        price = prices[0]
+        if not isinstance(price, dict) or price.get("status") == "Error":
+            raise BookingError("preflight_failed")
+        if price.get("paymentAvailable") is not False:
+            raise BookingError("payment_required")
+
+        personal = await self.async_get_personal_data()
+        # These claims select the same conditional notices as the official portal;
+        # they are not used to authorize a request (the API validates the bearer).
+        try:
+            encoded = self._auth._access_token.split(".")[1]
+            claims = json.loads(base64.urlsafe_b64decode(encoded + "=" * (-len(encoded) % 4)))
+            role = claims["role"]
+            birth = dt.date.fromisoformat(
+                (personal.get("birthDate") or personal["dateOfBirth"])[:10]
+            )
+            today = dt.date.today()
+            age = today.year - birth.year - ((today.month, today.day) < (birth.month, birth.day))
+            gender = personal["gender"]
+        except (IndexError, KeyError, ValueError, TypeError) as exc:
+            raise BookingError("preflight_failed") from exc
+        preparation = await self._get(
+            f"{MEDICOVER_API_URL}/appointments/api/v2/appointment-preparation",
+            {"DoctorId": slot["doctor"]["id"], "SpecialtyId": slot["specialty"]["id"]},
+        )
+        params = {
+            "clinicId": slot["clinic"]["id"],
+            "specialtyId": slot["specialty"]["id"],
+            "doctorId": slot["doctor"]["id"],
+            "date": slot["appointmentDate"],
+            "isChild": str(age < 18).lower(),
+            "patientAge": str(age),
+            "gender": gender,
+            "userRole": role,
+            "visitType": "Center",
+            "isOverbooking": "false",
+            "hasPreparation": str(bool(preparation.get("text"))).lower(),
+        }
+        for context in (
+            "regulations-visit-confirm",
+            "checkbox-visit-confirm",
+            "overbooking-visit-confirm",
+        ):
+            messages = await self._get(
+                f"{MEDICOVER_API_URL}/information-dispatcher/api/v2/message-groups/messages-for-context/{context}",
+                params,
+            )
+            if not isinstance(messages, list):
+                raise BookingError("preflight_failed")
+            if messages:
+                raise BookingError("confirmation_required")
+
     async def async_find_filters(
         self,
         region: int | None = None,
@@ -574,17 +748,7 @@ class MedicoverClient:
         if doctor:
             params["DoctorIds"] = doctor
 
-        _LOGGER.debug(
-            "find_appointments: region=%s, specialty=%s, clinic=%s, doctor=%s, "
-            "language=%s, start=%s, end=%s",
-            region,
-            specialty,
-            clinic,
-            doctor,
-            language,
-            start_date,
-            end_date,
-        )
+        _LOGGER.debug("Searching appointment slots")
         data = await self._get(url, params)
         items: list[dict[str, Any]] = data.get("items", [])
 

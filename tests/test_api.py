@@ -578,3 +578,29 @@ async def test_extract_mfa_code_id_missing_cookie_raises():
     jar = aiohttp.CookieJar(unsafe=True)
     with pytest.raises(AuthError):
         _extract_mfa_code_id(jar, MEDICOVER_LOGIN_URL)
+
+
+async def test_debug_redirect_omits_login_code_and_query(caplog):
+    import logging
+    from types import SimpleNamespace
+
+    auth, session = _make_auth()
+    code = "synthetic-sensitive-code"
+    auth._exchange_code = AsyncMock()
+    caplog.set_level(logging.DEBUG, logger="custom_components.medi_assistant.api")
+    try:
+        await auth._follow_redirects(
+            SimpleNamespace(
+                status=302,
+                headers={
+                    "Location": f"https://online24.medicover.pl/signin-oidc?code={code}&state=synthetic-state"
+                },
+            ),
+            "synthetic-verifier",
+        )
+    finally:
+        await session.close()
+    auth._exchange_code.assert_awaited_once_with(code, "synthetic-verifier")
+    assert code not in caplog.text
+    assert "synthetic-state" not in caplog.text
+    assert "signin-oidc" in caplog.text

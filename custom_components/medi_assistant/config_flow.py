@@ -345,11 +345,7 @@ class MedicoverConfigFlow(ConfigFlow, domain=DOMAIN):
         if self._auth_session and not self._auth_session.closed:
             await self._auth_session.close()
 
-        _LOGGER.info(
-            "New Medicover account configured: '%s' (unique_id=%s)",
-            full_name,
-            unique_id,
-        )
+        _LOGGER.info("New Medicover account configured")
         return self.async_create_entry(title=full_name, data=data)
 
 
@@ -536,12 +532,7 @@ class SearchSubentryFlowHandler(ConfigSubentryFlow):
                 return self.async_update_and_abort(
                     entry=entry, subentry=self._reconfigure, title=title, data=data
                 )
-            _LOGGER.info(
-                "New search configured: '%s' (region=%s, specialty=%s)",
-                title,
-                data.get(CONF_REGION_NAME),
-                data.get(CONF_SPECIALTY_NAME),
-            )
+            _LOGGER.info("New search configured")
             return self.async_create_entry(title=title, data=data)
 
         ex = self._existing

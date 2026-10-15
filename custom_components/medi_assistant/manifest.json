@@ -1,12 +1,18 @@
 {
   "domain": "medi_assistant",
   "name": "Medi Assistant",
-  "codeowners": ["@psorobka"],
+  "after_dependencies": [
+    "frontend",
+    "http"
+  ],
+  "codeowners": [
+    "@psorobka"
+  ],
   "config_flow": true,
   "dependencies": [],
   "documentation": "https://github.com/psorobka/medi_assistant",
   "iot_class": "cloud_polling",
   "issue_tracker": "https://github.com/psorobka/medi_assistant/issues",
   "requirements": [],
-  "version": "1.0.0"
+  "version": "1.1.0"
 }

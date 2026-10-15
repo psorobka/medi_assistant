@@ -211,3 +211,14 @@ inherits the same license.
 
 This project is not affiliated with Medicover. It uses an undocumented API that
 may change or break at any time. No warranty of any kind.
+
+## Rezerwacja wizyt
+
+Przycisk **Zarezerwuj** w powiadomieniu telefonu rezerwuje pierwszy wskazany termin.
+Aby wybrać i zarezerwować termin przez akcje HA, użyj `medi_assistant.list_booking_offers` i
+`medi_assistant.book_appointment`. [Instrukcja, ograniczenia i lokalny HA](docs/BOOKING.md).
+
+Zarezerwowane wizyty pokaże `medi_assistant.list_booked_appointments`.
+Wybraną wizytę odwołasz akcją `medi_assistant.cancel_appointment`, podając jej `cancellation_id`.
+
+Karta **Medi Assistant — Moje wizyty** pokazuje rezerwacje wszystkich kont oraz szukajki i znalezione terminy. Pozwala rezerwować i odwoływać wizyty z potwierdzeniem. Po restarcie HA dodaj ją z listy kart dashboardu. [Instrukcja](docs/BOOKING.md#karta-moje-wizyty).
