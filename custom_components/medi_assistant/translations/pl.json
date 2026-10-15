@@ -126,6 +126,30 @@
           "description": "booking_id z akcji Pokaż terminy do rezerwacji lub atrybutu appointments sensora."
         }
       }
+    },
+    "list_booked_appointments": {
+      "name": "Pokaż zarezerwowane wizyty",
+      "description": "Wyświetla zaplanowane wizyty konta wybranej szukajki oraz identyfikatory do odwołania.",
+      "fields": {
+        "entity_id": {
+          "name": "Szukajka konta Medicover",
+          "description": "Wybierz dowolną szukajkę należącą do konta z wizytą."
+        }
+      }
+    },
+    "cancel_appointment": {
+      "name": "Odwołaj wizytę",
+      "description": "Odwołuje wskazaną wizytę. Wymaga cancellation_id ważnego przez 30 minut lub do restartu HA.",
+      "fields": {
+        "cancellation_id": {
+          "name": "Identyfikator odwołania",
+          "description": "cancellation_id z akcji Pokaż zarezerwowane wizyty."
+        },
+        "confirm_late_cancellation": {
+          "name": "Potwierdzam późne odwołanie",
+          "description": "Włącz po sprawdzeniu warunków późnego odwołania wizyty w Medicover."
+        }
+      }
     }
   }
 }

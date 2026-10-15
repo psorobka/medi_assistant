@@ -14,6 +14,25 @@
 
 Korzystanie z tych akcji nie wymaga ustawienia powiadomień.
 
+## Odwołanie wizyty przez akcje HA
+
+1. Uruchom **Medi Assistant: Pokaż zarezerwowane wizyty**
+   (`medi_assistant.list_booked_appointments`). Wybierz dowolną szukajkę
+   należącą do konta pacjenta. Lista obejmuje zaplanowane wizyty tego konta,
+   również zarezerwowane poza integracją.
+2. Skopiuj `cancellation_id` konkretnej wizyty do akcji
+   **Medi Assistant: Odwołaj wizytę** (`medi_assistant.cancel_appointment`).
+   Uruchomienie odwołuje tę wizytę i zwraca `success`, `status`, `message`.
+
+Identyfikator jest ważny 30 minut, do przeładowania integracji lub restartu HA.
+Integracja ponownie sprawdza dokładny termin, lekarza, placówkę i specjalność.
+Wymaga `canCancel`. Dla późnych odwołań (`isLateCancellation`) sprawdź
+warunki w Medicover i włącz **Potwierdzam późne odwołanie**
+(`confirm_late_cancellation`). Domyślnie to pole jest wyłączone. Nie powtarza operacji po nieznanym wyniku.
+Żadna wizyta nie jest odwoływana podczas instalacji ani wyświetlania listy.
+Protokół: lista Planned i DELETE identyfikatora z person-appointments;
+referencja: [MediCony](https://github.com/bartekmp/MediCony/blob/main/src/medicover/api_client.py).
+
 ## Przycisk w powiadomieniu
 
 W szczegółach szukajki wybierz usługę telefonu `notify.mobile_app_…`.

@@ -13,7 +13,7 @@ import time
 import uuid
 from collections.abc import Callable, Coroutine
 from typing import Any
-from urllib.parse import parse_qs, quote_plus, unquote_plus, urlparse
+from urllib.parse import parse_qs, quote, quote_plus, unquote_plus, urlparse
 
 import aiohttp
 from yarl import URL as _YarlURL
@@ -531,13 +531,16 @@ class MedicoverClient:
                 return await resp.json(content_type=None)
         raise ApiError("personal-data request failed")
 
-    async def _async_booking_post(self, path: str, payload: dict[str, Any]) -> Any:
+    async def _async_appointment_write(
+        self, path: str, payload: dict[str, Any] | None = None, *, method: str = "POST"
+    ) -> Any:
         """Only retry an explicit 401; never replay a possibly committed write."""
         if not self._auth.is_token_valid():
             await self._auth.async_refresh_or_relogin()
         for attempt in range(2):
             token = self._auth._access_token
-            async with self._session.post(
+            async with self._session.request(
+                method,
                 f"{MEDICOVER_API_URL}/{path}",
                 headers=self._auth.get_headers(),
                 json=payload,
@@ -576,9 +579,42 @@ class MedicoverClient:
                 await self._auth.async_refresh_or_relogin(force=True)
         raise InvalidGrant("Booking authorization expired")
 
+    async def async_get_planned_appointments(self) -> list[dict[str, Any]]:
+        """Read all pages; never confuse search availability with booked visits."""
+        appointments = []
+        page = 1
+        while True:
+            data = await self._get(
+                f"{MEDICOVER_API_URL}/appointments/api/person-appointments/appointments",
+                {"AppointmentState": "Planned", "Page": page, "PageSize": 100},
+            )
+            if not isinstance(data, dict) or not isinstance(data.get("items"), list):
+                raise ApiError("Invalid planned appointment response")
+            items = data["items"]
+            if any(not isinstance(item, dict) for item in items):
+                raise ApiError("Invalid planned appointment item")
+            appointments.extend(items)
+            count = data.get("count")
+            if not isinstance(count, int) or count < 0:
+                raise ApiError("Missing planned appointment count")
+            if len(appointments) >= count:
+                return appointments
+            if not items or page >= 100:
+                raise ApiError("Incomplete planned appointment response")
+            page += 1
+
+    async def async_cancel_appointment(self, appointment_id: str) -> None:
+        """Cancel only the exact server-side identifier; no ambiguous retries."""
+        data = await self._async_appointment_write(
+            "appointments/api/person-appointments/appointments/" + quote(appointment_id, safe=""),
+            method="DELETE",
+        )
+        if not isinstance(data, dict) or data.get("status") != "Success":
+            raise BookingError("unknown")
+
     async def async_book_appointment(self, booking_string: str) -> None:
         """Book without checkout, payment or automatic selection of another slot."""
-        data = await self._async_booking_post(
+        data = await self._async_appointment_write(
             "appointments/api/v2/search-appointments/book-appointment",
             {
                 "bookingString": booking_string,
@@ -599,7 +635,7 @@ class MedicoverClient:
             or not all((slot.get(key) or {}).get("id") for key in ("clinic", "doctor", "specialty"))
         ):
             raise BookingError("unsupported")
-        prices = await self._async_booking_post(
+        prices = await self._async_appointment_write(
             "payment-gateway/api/v2/visit-prices",
             {
                 "visitDate": slot["appointmentDate"],

@@ -20,3 +20,31 @@ book_appointment:
       required: true
       selector:
         text:
+
+list_booked_appointments:
+  name: Pokaż zarezerwowane wizyty
+  description: Wyświetla zaplanowane wizyty konta wybranej szukajki oraz identyfikatory do odwołania.
+  fields:
+    entity_id:
+      name: Szukajka konta Medicover
+      required: true
+      selector:
+        entity:
+          filter:
+            - integration: medi_assistant
+              domain: sensor
+cancel_appointment:
+  name: Odwołaj wizytę
+  description: Odwołuje wskazaną wizytę. Wymaga cancellation_id z listy zarezerwowanych wizyt, ważnego przez 30 minut lub do restartu HA.
+  fields:
+    cancellation_id:
+      name: Identyfikator odwołania
+      required: true
+      selector:
+        text:
+    confirm_late_cancellation:
+      name: Potwierdzam późne odwołanie
+      description: Włącz po sprawdzeniu warunków późnego odwołania wizyty w Medicover.
+      default: false
+      selector:
+        boolean:

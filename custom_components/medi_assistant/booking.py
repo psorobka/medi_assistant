@@ -12,6 +12,7 @@ from aiohttp import ClientError
 from homeassistant.core import HomeAssistant
 
 from .api import MedicoverClient
+from .cancellation import CancellationManager
 from .exceptions import ApiError, AuthError, BookingError, InvalidGrant, MfaRequired
 
 if TYPE_CHECKING:
@@ -76,6 +77,7 @@ class BookingManager:
         self._hass = hass
         self._client = client
         self._entry = entry
+        self.cancellation = CancellationManager(hass, client, entry)
         self._offers: dict[str, Offer] = {}
         self._lock = asyncio.Lock()
 

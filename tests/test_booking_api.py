@@ -169,3 +169,52 @@ async def test_unsupported_slot_never_calls_api(booking_http, slot, change):
         with pytest.raises(BookingError, match="unsupported"):
             await booking_http.async_check_booking(copy.deepcopy(slot) | change)
         assert not mocked.requests
+
+
+async def test_planned_appointments_pagination(booking_http):
+    from urllib.parse import urlencode
+
+    base = f"{MEDICOVER_API_URL}/appointments/api/person-appointments/appointments"
+    with aioresponses() as mocked:
+        for page in (1, 2):
+            url = (
+                base
+                + "?"
+                + urlencode({"AppointmentState": "Planned", "Page": page, "PageSize": 100})
+            )
+            mocked.get(url, payload={"count": 2, "items": [{"id": f"synthetic-{page}"}]})
+        assert len(await booking_http.async_get_planned_appointments()) == 2
+
+
+@pytest.mark.parametrize(
+    "status,payload,expected",
+    [
+        (200, {"status": "Success"}, None),
+        (200, {"status": "Error"}, "unknown"),
+        (500, {}, "unknown"),
+        (403, {}, "rejected"),
+    ],
+)
+async def test_cancel_protocol_no_ambiguous_retry(booking_http, status, payload, expected):
+    url = f"{MEDICOVER_API_URL}/appointments/api/person-appointments/appointments/synthetic%2Fid"
+    with aioresponses() as mocked:
+        mocked.delete(url, status=status, payload=payload)
+        if expected:
+            with pytest.raises(BookingError, match=expected):
+                await booking_http.async_cancel_appointment("synthetic/id")
+        else:
+            await booking_http.async_cancel_appointment("synthetic/id")
+        assert sum(map(len, mocked.requests.values())) == 1
+
+
+@pytest.mark.parametrize(
+    "payload", [{}, {"count": 1, "items": [None]}, {"count": 1, "items": []}, {"items": []}]
+)
+async def test_invalid_planned_response(booking_http, payload):
+    from custom_components.medi_assistant.exceptions import ApiError
+
+    url = f"{MEDICOVER_API_URL}/appointments/api/person-appointments/appointments?AppointmentState=Planned&Page=1&PageSize=100"
+    with aioresponses() as mocked:
+        mocked.get(url, payload=payload)
+        with pytest.raises(ApiError):
+            await booking_http.async_get_planned_appointments()

@@ -217,3 +217,6 @@ may change or break at any time. No warranty of any kind.
 Przycisk **Zarezerwuj** w powiadomieniu telefonu rezerwuje pierwszy wskazany termin.
 Aby wybrać i zarezerwować termin przez akcje HA, użyj `medi_assistant.list_booking_offers` i
 `medi_assistant.book_appointment`. [Instrukcja, ograniczenia i lokalny HA](docs/BOOKING.md).
+
+Zarezerwowane wizyty pokaże `medi_assistant.list_booked_appointments`.
+Wybraną wizytę odwołasz akcją `medi_assistant.cancel_appointment`, podając jej `cancellation_id`.

@@ -20,6 +20,7 @@ podtrzymanie sesji, edytowalne szukajki i opcjonalne powiadomienia.
   odpowiedź po rezerwacji. Zarezerwuj dotyczy pierwszego wyświetlonego terminu.
 - `services.py` / `services.yaml`: `medi_assistant.list_booking_offers`
   oraz `medi_assistant.book_appointment` — przeglądanie terminów i rezerwacja przez akcje HA.
+- `cancellation.py`: lista zaplanowanych wizyt konta i uchwyty `cancellation_id` na 30 minut; ponowna weryfikacja tożsamości wizyty, canCancel i isLateCancellation (późne odwołanie wymaga confirm_late_cancellation), blokada powtórzeń po nieznanym wyniku. Akcje `list_booked_appointments` i `cancel_appointment`; testy `test_cancellation.py` i protokołu w `test_booking_api.py`.
 - `sensor.py`: istniejący kontrakt atrybutów + `booking_id`; bez `bookingString`.
 - Instrukcja: `docs/BOOKING.md`. Testy: `test_booking.py`, `test_booking_api.py`,
   regresje dotychczasowych sensorów/powiadomień w istniejących testach.
@@ -37,10 +38,9 @@ istniejącego kontenera, żeby nie uruchomić innej kopii. Dane sesji wyłączni
 w ignorowanym `.local-ha/config`. Dostęp lokalny bez logowania jest oparty
 na `trusted_networks`, a nie kopiowaniu sesji z produkcji.
 
-Kontrole końcowe: 194 testy przeszły, pokrycie 94,73% (próg 90%), Ruff check i format,
+Kontrole końcowe: 216 testów przeszło, pokrycie 95% (próg 90%), Ruff check i format,
 walidacja lokalnej konfiguracji HA. Hassfest/HACS wymagają CI; nie twierdź,
-że przeszły, jeśli nie uruchomiono workflow. Prawdziwej rezerwacji nie wykonano
-w testach — sprawdza ją użytkownik na swoim koncie.
+że przeszły, jeśli nie uruchomiono workflow. Testy automatyczne nie korzystają z prawdziwego API. Rezerwacja przez akcję HA została potwierdzona na żywo na polecenie użytkownika. Odwołania prawdziwej wizyty nie wykonywano.
 
 Przy commicie pomijaj zastaną zmianę `CLAUDE.md`. Nie publikuj ani nie scalaj
 tej gałęzi bez polecenia użytkownika.

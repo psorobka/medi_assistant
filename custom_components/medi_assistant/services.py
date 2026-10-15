@@ -9,6 +9,7 @@ from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import entity_registry as er
 
 from .booking import result
+from .cancellation import result as cancellation_result
 from .const import DOMAIN
 
 SERVICE_BOOK = "book_appointment"
@@ -51,6 +52,46 @@ def async_setup_booking_service(hass: HomeAssistant) -> None:
             if appointments
             else "Brak terminów do rezerwacji.",
         }
+
+    async def async_list_booked(call: ServiceCall) -> dict:
+        registered = er.async_get(hass).async_get(call.data["entity_id"])
+        if registered is None or registered.platform != DOMAIN:
+            raise ServiceValidationError("Wybierz szukajkę konta Medicover.")
+        for entry in hass.config_entries.async_loaded_entries(DOMAIN):
+            if entry.entry_id == registered.config_entry_id:
+                return await entry.runtime_data.booking.cancellation.async_list()
+        raise ServiceValidationError("Konto Medicover nie jest załadowane.")
+
+    async def async_cancel(call: ServiceCall) -> dict:
+        cancellation_id = call.data["cancellation_id"]
+        for entry in hass.config_entries.async_loaded_entries(DOMAIN):
+            manager = entry.runtime_data.booking.cancellation
+            if manager.owns(cancellation_id):
+                return await manager.async_cancel(
+                    cancellation_id,
+                    confirm_late_cancellation=call.data["confirm_late_cancellation"],
+                )
+        return cancellation_result("expired")
+
+    hass.services.async_register(
+        DOMAIN,
+        "list_booked_appointments",
+        async_list_booked,
+        schema=vol.Schema({vol.Required("entity_id"): cv.entity_id}),
+        supports_response=SupportsResponse.ONLY,
+    )
+    hass.services.async_register(
+        DOMAIN,
+        "cancel_appointment",
+        async_cancel,
+        schema=vol.Schema(
+            {
+                vol.Required("cancellation_id"): cv.string,
+                vol.Optional("confirm_late_cancellation", default=False): cv.boolean,
+            }
+        ),
+        supports_response=SupportsResponse.ONLY,
+    )
 
     hass.services.async_register(
         DOMAIN,

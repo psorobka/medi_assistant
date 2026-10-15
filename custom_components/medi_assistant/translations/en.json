@@ -126,6 +126,30 @@
           "description": "booking_id from Show bookable appointments or the sensor's appointments attribute."
         }
       }
+    },
+    "list_booked_appointments": {
+      "name": "List booked appointments",
+      "description": "Lists planned appointments for the selected search account and identifiers for cancellation.",
+      "fields": {
+        "entity_id": {
+          "name": "Medicover account search",
+          "description": "Select any search belonging to the appointment account."
+        }
+      }
+    },
+    "cancel_appointment": {
+      "name": "Cancel appointment",
+      "description": "Cancels the selected appointment. Requires a cancellation_id valid for 30 minutes or until HA restarts.",
+      "fields": {
+        "cancellation_id": {
+          "name": "Cancellation identifier",
+          "description": "cancellation_id from List booked appointments."
+        },
+        "confirm_late_cancellation": {
+          "name": "Confirm late cancellation",
+          "description": "Enable after reviewing Medicover late cancellation terms."
+        }
+      }
     }
   }
 }
