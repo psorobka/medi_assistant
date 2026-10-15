@@ -212,8 +212,8 @@ inherits the same license.
 This project is not affiliated with Medicover. It uses an undocumented API that
 may change or break at any time. No warranty of any kind.
 
-## Rezerwacja z powiadomienia i test lokalny
+## Rezerwacja wizyt
 
 Przycisk **Zarezerwuj** w powiadomieniu telefonu rezerwuje pierwszy wskazany termin.
-Do testu bez telefonu użyj akcji `medi_assistant.list_booking_offers` i
+Aby wybrać i zarezerwować termin przez akcje HA, użyj `medi_assistant.list_booking_offers` i
 `medi_assistant.book_appointment`. [Instrukcja, ograniczenia i lokalny HA](docs/BOOKING.md).

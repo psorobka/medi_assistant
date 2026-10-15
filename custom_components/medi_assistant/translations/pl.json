@@ -109,7 +109,7 @@
   "services": {
     "list_booking_offers": {
       "name": "Pokaż terminy do rezerwacji",
-      "description": "Wyświetla terminy i identyfikatory do testu rezerwacji bez powiadomień.",
+      "description": "Wyświetla dostępne terminy i ich identyfikatory rezerwacji dla wybranej szukajki.",
       "fields": {
         "entity_id": {
           "name": "Szukajka Medicover",

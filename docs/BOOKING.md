@@ -1,13 +1,6 @@
 # Rezerwacja wizyty
 
-## Test lokalny bez telefonu
-
-Uruchom `scripts/start-local-ha.ps1` i otwórz <http://localhost:8123>.
-Launcher montuje `custom_components` z tego repozytorium, uruchamia oficjalny
-HA 2025.12.4 / Python 3.13 i przygotowuje lokalnego testera. Dostęp z localhost
-pomija logowanie dzięki `trusted_networks` (localhost i brama Dockera) oraz
-`allow_bypass_login`. Port jest dostępny tylko na tym komputerze.
-Konfiguracja i sesje pozostają wyłącznie w ignorowanym `.local-ha/config`.
+## Rezerwacja przez akcje HA
 
 1. W Ustawienia → Urządzenia i usługi dodaj **Medi Assistant** i konto Medicover.
 2. Dodaj szukajkę. Jej sensor pokaże znalezione terminy.
@@ -19,9 +12,7 @@ Konfiguracja i sesje pozostają wyłącznie w ignorowanym `.local-ha/config`.
    Uruchomienie jest prawdziwą rezerwacją na właściwym koncie pacjenta.
    Odpowiedź zawiera `success`, `status` i czytelny `message`.
 
-Nie trzeba ustawiać powiadomień do powyższego testu. Zatrzymanie środowiska:
-`docker stop medicover-ha-local`. Zmiany Pythona wymagają restartu kontenera.
-Nie kopiuj konfiguracji `.storage` z produkcyjnego HA.
+Korzystanie z tych akcji nie wymaga ustawienia powiadomień.
 
 ## Przycisk w powiadomieniu
 
@@ -68,3 +59,16 @@ Testy używają syntetycznych odpowiedzi i nie rezerwują prawdziwych wizyt.
 Test na rzeczywistym koncie wykonuje użytkownik.
 
 Debug integracji jest stale aktywny w tej instancji testowej, także po restarcie. Log znajduje się w ignorowanym katalogu .local-ha/config/home-assistant.log; dostępny jest też przez docker logs medicover-ha-local. Logowanie integracji pomija nazwy kont i szukajek oraz parametry adresów OIDC.
+
+## Lokalne środowisko deweloperskie
+
+Uruchom `scripts/start-local-ha.ps1` i otwórz <http://localhost:8123>.
+Launcher montuje `custom_components` z tego repozytorium, uruchamia oficjalny
+HA 2025.12.4 / Python 3.13 i przygotowuje lokalnego testera. Dostęp z localhost
+pomija logowanie dzięki `trusted_networks` (localhost i brama Dockera) oraz
+`allow_bypass_login`. Port jest dostępny tylko na tym komputerze.
+Konfiguracja i sesje pozostają wyłącznie w ignorowanym `.local-ha/config`.
+
+Zatrzymanie środowiska: `docker stop medicover-ha-local`.
+Zmiany Pythona wymagają restartu kontenera.
+Nie kopiuj konfiguracji `.storage` z produkcyjnego HA.

@@ -19,7 +19,7 @@ podtrzymanie sesji, edytowalne szukajki i opcjonalne powiadomienia.
 - `coordinator.py`: trzeci przycisk w natywnych powiadomieniach mobile_app,
   odpowiedź po rezerwacji. Zarezerwuj dotyczy pierwszego wyświetlonego terminu.
 - `services.py` / `services.yaml`: `medi_assistant.list_booking_offers`
-  oraz `medi_assistant.book_appointment` — test ręczny bez telefonu.
+  oraz `medi_assistant.book_appointment` — przeglądanie terminów i rezerwacja przez akcje HA.
 - `sensor.py`: istniejący kontrakt atrybutów + `booking_id`; bez `bookingString`.
 - Instrukcja: `docs/BOOKING.md`. Testy: `test_booking.py`, `test_booking_api.py`,
   regresje dotychczasowych sensorów/powiadomień w istniejących testach.
