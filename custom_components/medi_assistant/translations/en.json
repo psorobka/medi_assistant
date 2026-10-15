@@ -129,11 +129,11 @@
     },
     "list_booked_appointments": {
       "name": "List booked appointments",
-      "description": "Lists planned appointments for the selected search account and identifiers for cancellation.",
+      "description": "Lists planned appointments for all accounts. Optionally select a search to limit results to its account.",
       "fields": {
         "entity_id": {
           "name": "Medicover account search",
-          "description": "Select any search belonging to the appointment account."
+          "description": "Optional: select a search to list only its account appointments."
         }
       }
     },

@@ -54,6 +54,28 @@ def async_setup_booking_service(hass: HomeAssistant) -> None:
         }
 
     async def async_list_booked(call: ServiceCall) -> dict:
+        if "entity_id" not in call.data:
+            accounts = []
+            loaded = {entry.entry_id for entry in hass.config_entries.async_loaded_entries(DOMAIN)}
+            for entry in hass.config_entries.async_entries(DOMAIN):
+                if entry.disabled_by is not None:
+                    continue
+                if entry.entry_id in loaded:
+                    listing = await entry.runtime_data.booking.cancellation.async_list()
+                else:
+                    listing = {
+                        "success": False,
+                        "status": "unavailable",
+                        "appointments": [],
+                        "message": "Konto jest niedostępne. Sprawdź integrację Medi Assistant.",
+                    }
+                accounts.append(
+                    {"account_id": entry.entry_id, "account_name": entry.title, **listing}
+                )
+            return {
+                "success": all(account["success"] for account in accounts),
+                "accounts": accounts,
+            }
         registered = er.async_get(hass).async_get(call.data["entity_id"])
         if registered is None or registered.platform != DOMAIN:
             raise ServiceValidationError("Wybierz szukajkę konta Medicover.")
@@ -77,7 +99,7 @@ def async_setup_booking_service(hass: HomeAssistant) -> None:
         DOMAIN,
         "list_booked_appointments",
         async_list_booked,
-        schema=vol.Schema({vol.Required("entity_id"): cv.entity_id}),
+        schema=vol.Schema({vol.Optional("entity_id"): cv.entity_id}),
         supports_response=SupportsResponse.ONLY,
     )
     hass.services.async_register(

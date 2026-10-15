@@ -20,3 +20,5 @@ htmlcov/
 .local-ha/
 .ruff_cache/
 .uv-cache/
+
+node_modules/

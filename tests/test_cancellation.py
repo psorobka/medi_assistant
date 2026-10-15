@@ -33,7 +33,9 @@ def cancellation(hass):
     client.async_get_planned_appointments = AsyncMock(return_value=[copy.deepcopy(slot)])
     client.async_cancel_appointment = AsyncMock()
     manager = CancellationManager(hass, client, entry)
-    entry.runtime_data = SimpleNamespace(booking=SimpleNamespace(cancellation=manager))
+    entry.runtime_data = SimpleNamespace(
+        auth_session=Mock(closed=True), booking=SimpleNamespace(cancellation=manager)
+    )
     return manager, client, entry, slot
 
 
@@ -99,7 +101,8 @@ async def test_service_account_isolation(hass, cancellation, enable_custom_integ
     other_client = Mock()
     other_client.async_cancel_appointment = AsyncMock()
     other.runtime_data = SimpleNamespace(
-        booking=SimpleNamespace(cancellation=CancellationManager(hass, other_client, other))
+        auth_session=Mock(closed=True),
+        booking=SimpleNamespace(cancellation=CancellationManager(hass, other_client, other)),
     )
     entity = er.async_get(hass).async_get_or_create(
         "sensor", "medi_assistant", "synthetic-search", config_entry=entry
@@ -193,3 +196,30 @@ async def test_late_cancellation_requires_explicit_confirmation(cancellation):
     outcome = await manager.async_cancel(public["cancellation_id"], confirm_late_cancellation=True)
     assert outcome["success"]
     client.async_cancel_appointment.assert_awaited_once_with(slot["id"])
+
+
+async def test_list_all_accounts_without_search(hass, cancellation, enable_custom_integrations):
+    _, client, entry, _ = cancellation
+    hass.config_entries.async_update_entry(entry, title="Example account")
+    other = MockConfigEntry(domain="medi_assistant", title="Unavailable account")
+    other.add_to_hass(hass)
+    async_setup_booking_service(hass)
+    response = await hass.services.async_call(
+        "medi_assistant", "list_booked_appointments", {}, blocking=True, return_response=True
+    )
+    accounts = {item["account_id"]: item for item in response["accounts"]}
+    assert not response["success"]
+    assert accounts[entry.entry_id]["appointments"][0]["date"] == "2099-02-03T10:00:00"
+    assert accounts[entry.entry_id]["account_name"] == "Example account"
+    assert accounts[other.entry_id]["status"] == "unavailable"
+    assert "synthetic-private" not in str(response)
+    client.async_cancel_appointment.assert_not_awaited()
+
+
+async def test_list_all_with_no_accounts(hass):
+    async_setup_booking_service(hass)
+    response = await hass.services.async_call(
+        "medi_assistant", "list_booked_appointments", {}, blocking=True, return_response=True
+    )
+    assert response["accounts"] == []
+    assert response["success"]

@@ -14,11 +14,35 @@
 
 Korzystanie z tych akcji nie wymaga ustawienia powiadomień.
 
+## Karta „Moje wizyty”
+
+Po ponownym uruchomieniu HA karta **Medi Assistant — Moje wizyty** jest
+dostępna w wyborze kart dashboardu. Integracja sama udostępnia i ładuje jej
+moduł; nie wymaga osobnego dodatku HACS ani zewnętrznych skryptów.
+Dodaj kartę z listy w edytorze dashboardu. Konfiguracja YAML, jeśli potrzebna:
+
+```yaml
+type: custom:medi-assistant-appointments
+```
+
+Karta pobiera zaplanowane wizyty wszystkich aktywnych kont, także bez szukajek.
+Przy każdej pokazuje datę, godzinę, lekarza, specjalność i placówkę.
+**Odwołaj** otwiera potwierdzenie z danymi konkretnej wizyty. Późne odwołanie
+wymaga dodatkowego zaznaczenia zgody. Po operacji lista pobierana jest ponownie;
+samoczynnie odświeża się także co 5 minut oraz po powrocie do nieaktualnej karty.
+Błąd jednego konta nie ukrywa wizyt pozostałych. Dane wizyt nie trafiają do
+encji, historii HA, localStorage ani logów integracji.
+
+Testy interakcji: Node 24, `pnpm install --frozen-lockfile --ignore-scripts`,
+`pnpm test:frontend` (syntetyczne dane i fałszywe odpowiedzi HA).
+Karta używa [API własnych kart HA](https://developers.home-assistant.io/docs/frontend/custom-ui/custom-card/).
+
 ## Odwołanie wizyty przez akcje HA
 
 1. Uruchom **Medi Assistant: Pokaż zarezerwowane wizyty**
-   (`medi_assistant.list_booked_appointments`). Wybierz dowolną szukajkę
-   należącą do konta pacjenta. Lista obejmuje zaplanowane wizyty tego konta,
+   (`medi_assistant.list_booked_appointments`). Opcjonalnie wybierz dowolną szukajkę
+   należącą do konta pacjenta. Bez wskazania szukajki akcja zwraca `accounts`
+   ze wszystkimi aktywnymi kontami; z szukajką zachowuje odpowiedź `appointments`. Lista obejmuje zaplanowane wizyty tego konta,
    również zarezerwowane poza integracją.
 2. Skopiuj `cancellation_id` konkretnej wizyty do akcji
    **Medi Assistant: Odwołaj wizytę** (`medi_assistant.cancel_appointment`).

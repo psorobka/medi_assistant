@@ -1,7 +1,12 @@
 {
   "domain": "medi_assistant",
   "name": "Medi Assistant",
-  "codeowners": ["@psorobka"],
+  "after_dependencies": [
+    "frontend"
+  ],
+  "codeowners": [
+    "@psorobka"
+  ],
   "config_flow": true,
   "dependencies": [],
   "documentation": "https://github.com/psorobka/medi_assistant",

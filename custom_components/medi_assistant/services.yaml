@@ -23,11 +23,11 @@ book_appointment:
 
 list_booked_appointments:
   name: Pokaż zarezerwowane wizyty
-  description: Wyświetla zaplanowane wizyty konta wybranej szukajki oraz identyfikatory do odwołania.
+  description: Wyświetla zaplanowane wizyty wszystkich kont. Opcjonalnie wybierz szukajkę, aby ograniczyć wynik do jej konta.
   fields:
     entity_id:
       name: Szukajka konta Medicover
-      required: true
+      required: false
       selector:
         entity:
           filter:

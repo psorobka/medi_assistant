@@ -26,6 +26,7 @@ from .const import (
 from .coordinator import MedicoverCoordinator
 from .booking import BookingManager
 from .services import async_setup_booking_service
+from .frontend import async_setup_card
 from .exceptions import AuthError, InvalidGrant, MfaRequired
 from .store import FiltersStore
 from .token_keepalive import TokenKeepAlive
@@ -47,6 +48,10 @@ class MedicoverRuntimeData:
 
 
 type MedicoverConfigEntry = ConfigEntry[MedicoverRuntimeData]
+
+
+async def async_setup(hass: HomeAssistant, config: dict) -> bool:
+    return await async_setup_card(hass)
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: MedicoverConfigEntry) -> bool:
