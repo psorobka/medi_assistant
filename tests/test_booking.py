@@ -330,3 +330,54 @@ async def test_expired_native_button_reports_failure_after_offer_pruned(hass, bo
     await hass.async_block_till_done()
     assert "wygasł" in calls[0].data["message"]
     client.async_book_appointment.assert_not_awaited()
+
+
+async def test_card_searches_use_current_handles_and_account_scope(hass, booking, booking_slot):
+    manager, client, entry, subentry, _ = booking
+    entry.runtime_data.coordinator.data = {subentry.subentry_id: [booking_slot] * 22}
+    entry.runtime_data.coordinator.last_update_success = True
+    async_setup_booking_service(hass)
+    response = await hass.services.async_call(
+        "medi_assistant", "list_booking_offers", {}, blocking=True, return_response=True
+    )
+    account = response["accounts"][0]
+    assert account["account_id"] == entry.entry_id
+    search = account["searches"][0]
+    assert search["name"] == subentry.title
+    assert search["count"] == 22
+    assert search["truncated"]
+    assert len(search["appointments"]) == 20
+    assert manager.owns_search(search["appointments"][0]["booking_id"], subentry.subentry_id)
+    assert "bookingString" not in str(response)
+    client.async_find_appointments.assert_not_awaited()
+    client.async_book_appointment.assert_not_awaited()
+
+
+async def test_card_search_failure_is_not_an_empty_result(hass, booking):
+    _, _, entry, subentry, _ = booking
+    entry.runtime_data.coordinator.data = {subentry.subentry_id: []}
+    entry.runtime_data.coordinator.last_update_success = False
+    async_setup_booking_service(hass)
+    response = await hass.services.async_call(
+        "medi_assistant", "list_booking_offers", {}, blocking=True, return_response=True
+    )
+    search = response["accounts"][0]["searches"][0]
+    assert not search["available"]
+    assert search["message"]
+    assert search["appointments"] == []
+
+
+async def test_card_manual_refresh_fetches_new_search_results(hass, booking):
+    _, _, entry, subentry, _ = booking
+    entry.runtime_data.coordinator.data = {subentry.subentry_id: []}
+    entry.runtime_data.coordinator.last_update_success = True
+    async_setup_booking_service(hass)
+    response = await hass.services.async_call(
+        "medi_assistant",
+        "list_booking_offers",
+        {"refresh": True},
+        blocking=True,
+        return_response=True,
+    )
+    assert response["accounts"][0]["searches"][0]["available"]
+    entry.runtime_data.coordinator.async_request_refresh.assert_awaited_once()

@@ -1,15 +1,21 @@
 list_booking_offers:
   name: Pokaż terminy do rezerwacji
-  description: Wyświetla dostępne terminy i ich identyfikatory rezerwacji dla wybranej szukajki.
+  description: Wyświetla szukajki wszystkich kont i znalezione terminy. Opcjonalnie wybierz jedną szukajkę.
   fields:
     entity_id:
       name: Szukajka Medicover
-      required: true
+      required: false
       selector:
         entity:
           filter:
             - integration: medi_assistant
               domain: sensor
+    refresh:
+      name: Odśwież wyniki szukajek
+      description: Pobiera nowe wyniki dla listy wszystkich szukajek.
+      default: false
+      selector:
+        boolean:
 book_appointment:
   name: Zarezerwuj wizytę
   description: Rezerwuje dokładnie wskazany termin. Identyfikator z sensora wygasa po 30 minutach lub po restarcie HA. Zwraca wynik do automatyzacji.

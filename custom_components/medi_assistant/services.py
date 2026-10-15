@@ -11,6 +11,7 @@ from homeassistant.helpers import entity_registry as er
 from .booking import result
 from .cancellation import result as cancellation_result
 from .const import DOMAIN
+from .search_offers import async_list_search_offers
 
 SERVICE_BOOK = "book_appointment"
 
@@ -33,6 +34,8 @@ def async_setup_booking_service(hass: HomeAssistant) -> None:
         return result("expired")
 
     async def async_list(call: ServiceCall) -> dict:
+        if "entity_id" not in call.data:
+            return await async_list_search_offers(hass, refresh=call.data["refresh"])
         entity_id = call.data["entity_id"]
         registered = er.async_get(hass).async_get(entity_id)
         state = hass.states.get(entity_id)
@@ -119,7 +122,12 @@ def async_setup_booking_service(hass: HomeAssistant) -> None:
         DOMAIN,
         "list_booking_offers",
         async_list,
-        schema=vol.Schema({vol.Required("entity_id"): cv.entity_id}),
+        schema=vol.Schema(
+            {
+                vol.Optional("entity_id"): cv.entity_id,
+                vol.Optional("refresh", default=False): cv.boolean,
+            }
+        ),
         supports_response=SupportsResponse.ONLY,
     )
 

@@ -6,7 +6,9 @@
 2. Dodaj szukajkę. Jej sensor pokaże znalezione terminy.
 3. W Narzędzia deweloperskie → Akcje uruchom
    **Medi Assistant: Pokaż terminy do rezerwacji** (`medi_assistant.list_booking_offers`).
-   Wybierz sensor szukajki. Ta akcja wyłącznie wyświetla terminy.
+   Wybierz sensor szukajki. Bez wyboru sensora akcja zwraca `accounts` z listą
+   `searches` dla każdego konta. Parametr `refresh: true` aktualizuje wyniki
+   przy listowaniu wszystkich szukajek. Ta akcja wyłącznie wyświetla terminy.
 4. Skopiuj `booking_id` wybranego terminu do akcji
    **Medi Assistant: Zarezerwuj wizytę** (`medi_assistant.book_appointment`).
    Uruchomienie jest prawdziwą rezerwacją na właściwym koncie pacjenta.
@@ -27,6 +29,16 @@ type: custom:medi-assistant-appointments
 
 Karta pobiera zaplanowane wizyty wszystkich aktywnych kont, także bez szukajek.
 Przy każdej pokazuje datę, godzinę, lekarza, specjalność i placówkę.
+Pod listą rezerwacji sekcja **Szukajki** grupuje znalezione terminy według
+konta i nazwy szukajki. Przy każdym terminie **Zarezerwuj** otwiera potwierdzenie
+z danymi wizyty. Zapis używa dokładnego `booking_id` i dotychczasowego
+sprawdzenia aktualnej dostępności, ceny i wymaganych zgód. Wyświetlane jest
+do 20 najbliższych terminów na szukajkę; przy większej liczbie karta pokazuje
+liczbę wyświetlonych i wszystkich znalezionych terminów. Szukajki można zwijać.
+**Odśwież** pobiera nowe wyniki; okresowe odświeżanie karty odczytuje wyniki
+ostatniej aktualizacji integracji. Błędy szukajek są odróżnione od braku terminów.
+Po próbie rezerwacji odświeżane są rezerwacje i wyniki szukajek, bez ponawiania zapisu.
+
 **Odwołaj** otwiera potwierdzenie z danymi konkretnej wizyty. Późne odwołanie
 wymaga dodatkowego zaznaczenia zgody. Po operacji lista pobierana jest ponownie;
 samoczynnie odświeża się także co 5 minut oraz po powrocie do nieaktualnej karty.

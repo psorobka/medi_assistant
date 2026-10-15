@@ -109,11 +109,15 @@
   "services": {
     "list_booking_offers": {
       "name": "Pokaż terminy do rezerwacji",
-      "description": "Wyświetla dostępne terminy i ich identyfikatory rezerwacji dla wybranej szukajki.",
+      "description": "Wyświetla szukajki wszystkich kont i znalezione terminy. Opcjonalnie wybierz jedną szukajkę.",
       "fields": {
         "entity_id": {
           "name": "Szukajka Medicover",
-          "description": "Wybierz sensor szukajki."
+          "description": "Opcjonalnie: wybierz jedną szukajkę."
+        },
+        "refresh": {
+          "name": "Odśwież wyniki szukajek",
+          "description": "Pobiera nowe wyniki dla listy wszystkich szukajek."
         }
       }
     },

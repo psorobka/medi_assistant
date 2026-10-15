@@ -16,19 +16,22 @@ const appointment = {
 };
 const account = { account_id: "synthetic-account", account_name: "Example Account", success: true, appointments: [appointment] };
 
-async function create(accounts = [account], cancel = async () => ({ success: true, status: "cancelled" })) {
+async function create(accounts = [account], cancel = async () => ({ success: true, status: "cancelled" }), searchAccounts = [], book = async () => ({ success: true, status: "booked" })) {
   const calls = [];
   let listing = accounts;
+  let searchListing = searchAccounts;
   const card = document.createElement("medi-assistant-appointments");
   card.setConfig({});
   card.hass = { language: "pl", connection: {}, callWS: async (message) => {
     calls.push(message);
+    if (message.service === "book_appointment") return { response: await book(message) };
+    if (message.service === "list_booking_offers") return { response: { accounts: structuredClone(searchListing) } };
     if (message.service === "cancel_appointment") return { response: await cancel(message) };
     return { response: { accounts: structuredClone(listing) } };
   }};
   document.body.append(card);
   await tick();
-  return { card, calls, setListing: (value) => { listing = value; } };
+  return { card, calls, setListing: (value) => { listing = value; }, setSearchListing: (value) => { searchListing = value; } };
 }
 function button(card, text) {
   const found = [...card.shadowRoot.querySelectorAll("button")].find((node) => node.textContent === text);
@@ -41,7 +44,7 @@ test("shows all accounts, empty accounts and failures without cancelling", async
   assert.match(card.shadowRoot.textContent, /Example Doctor/);
   assert.match(card.shadowRoot.textContent, /Nie masz zaplanowanych wizyt/);
   assert.match(card.shadowRoot.textContent, /Reconnect account/);
-  assert.equal(calls.length, 1);
+  assert.equal(calls.length, 2);
   assert.deepEqual(calls[0].service_data, {});
 });
 
@@ -51,7 +54,7 @@ test("confirmation can be dismissed without sending a cancellation", async () =>
   assert.match(card.shadowRoot.querySelector(".confirmation").textContent, /Example Clinic/);
   button(card, "Zostaw wizytę").click();
   assert.equal(card.shadowRoot.querySelector(".confirmation"), null);
-  assert.equal(calls.length, 1);
+  assert.equal(calls.length, 2);
 });
 
 test("confirmed cancellation sends the exact handle once and reloads the list", async () => {
@@ -61,13 +64,13 @@ test("confirmed cancellation sends the exact handle once and reloads the list", 
   button(card, "Odwołaj wizytę").click();
   button(card, "Odwoływanie…").click();
   assert.equal(calls.filter((call) => call.service === "cancel_appointment").length, 1);
-  assert.deepEqual(calls[1].service_data, { cancellation_id: appointment.cancellation_id, confirm_late_cancellation: false });
+  assert.deepEqual(calls.find((call) => call.service === "cancel_appointment").service_data, { cancellation_id: appointment.cancellation_id, confirm_late_cancellation: false });
   setListing([{ ...account, appointments: [] }]);
   complete({ success: true, status: "cancelled" });
   await tick();
   assert.match(card.shadowRoot.textContent, /Wizyta została odwołana/);
   assert.equal(card.shadowRoot.querySelectorAll(".visit").length, 0);
-  assert.equal(calls.length, 3);
+  assert.equal(calls.length, 5);
 });
 
 test("late cancellation needs an explicit checkbox", async () => {
@@ -75,13 +78,13 @@ test("late cancellation needs an explicit checkbox", async () => {
   button(card, "Odwołaj").click();
   assert.equal(button(card, "Odwołaj wizytę").disabled, true);
   button(card, "Odwołaj wizytę").click();
-  assert.equal(calls.length, 1);
+  assert.equal(calls.length, 2);
   const checkbox = card.shadowRoot.querySelector("input");
   checkbox.checked = true;
   checkbox.dispatchEvent(new window.Event("change"));
   button(card, "Odwołaj wizytę").click();
   await tick();
-  assert.equal(calls[1].service_data.confirm_late_cancellation, true);
+  assert.equal(calls.find((call) => call.service === "cancel_appointment").service_data.confirm_late_cancellation, true);
 });
 
 test("a newly late visit requests confirmation without silently retrying", async () => {
@@ -118,4 +121,88 @@ test("failed refresh preserves data and disables cancellation until recovery", a
   assert.match(card.shadowRoot.textContent, /Example Doctor/);
   assert.equal(button(card, "Odwołaj").disabled, true);
   assert.ok(card.shadowRoot.querySelector('[role="alert"]'));
+});
+
+
+const offered = { date: "2099-02-03T11:00:00", doctor: "Offered Doctor", clinic: "Offered Clinic", specialty: "Offered Specialty", booking_id: "synthetic-exact-offer" };
+const searchAccount = { account_id: "synthetic-account", account_name: "Example Account", searches: [{ search_id: "search-a", name: "My search", available: true, count: 1, truncated: false, appointments: [offered] }] };
+
+test("searches show offers and booking buttons without submitting bookings", async () => {
+  const { card, calls } = await create([], undefined, [searchAccount]);
+  assert.match(card.shadowRoot.textContent, /My search/);
+  assert.match(card.shadowRoot.textContent, /Offered Doctor/);
+  assert.ok(button(card, "Zarezerwuj"));
+  assert.equal(calls.filter((call) => call.service === "book_appointment").length, 0);
+  button(card, "Zarezerwuj").click();
+  assert.match(card.shadowRoot.querySelector(".confirmation").textContent, /Offered Clinic/);
+  button(card, "Wróć do terminów").click();
+  assert.equal(calls.filter((call) => call.service === "book_appointment").length, 0);
+});
+
+test("booking sends only the selected handle once and refreshes both lists", async () => {
+  let complete;
+  const { card, calls, setListing, setSearchListing } = await create([], undefined, [searchAccount], () => new Promise((resolve) => { complete = resolve; }));
+  button(card, "Zarezerwuj").click();
+  button(card, "Zarezerwuj wizytę").click();
+  button(card, "Rezerwowanie…").click();
+  assert.equal(calls.filter((call) => call.service === "book_appointment").length, 1);
+  assert.deepEqual(calls.find((call) => call.service === "book_appointment").service_data, { booking_id: offered.booking_id });
+  setListing([account]);
+  setSearchListing([{ ...searchAccount, searches: [{ ...searchAccount.searches[0], count: 0, appointments: [] }] }]);
+  complete({ success: true, status: "booked" });
+  await tick();
+  assert.match(card.shadowRoot.textContent, /Wizyta została zarezerwowana/);
+  assert.match(card.shadowRoot.textContent, /Example Doctor/);
+  assert.match(card.shadowRoot.textContent, /Brak dostępnych terminów/);
+  assert.equal(calls.filter((call) => call.service === "list_booking_offers").length, 2);
+  assert.equal(calls.filter((call) => call.service === "list_booked_appointments").length, 2);
+  assert.equal(calls.filter((call) => call.service === "list_booking_offers").at(-1).service_data.refresh, true);
+});
+
+test("expired booking is reported without substituting another appointment", async () => {
+  const { card, calls } = await create([], undefined, [searchAccount], async () => ({ success: false, status: "expired", message: "Offer expired" }));
+  button(card, "Zarezerwuj").click();
+  button(card, "Zarezerwuj wizytę").click();
+  await tick();
+  assert.match(card.shadowRoot.textContent, /Offer expired/);
+  assert.equal(calls.filter((call) => call.service === "book_appointment").length, 1);
+});
+
+test("ambiguous booking response is not retried", async () => {
+  const { card, calls } = await create([], undefined, [searchAccount], async () => { throw new Error("lost response"); });
+  button(card, "Zarezerwuj").click();
+  button(card, "Zarezerwuj wizytę").click();
+  await tick();
+  assert.match(card.shadowRoot.textContent, /Nie udało się potwierdzić wyniku/);
+  assert.equal(calls.filter((call) => call.service === "book_appointment").length, 1);
+});
+
+test("empty, failed and truncated searches have distinct messages", async () => {
+  const searches = [
+    { search_id: "empty", name: "Empty search", available: true, count: 0, appointments: [] },
+    { search_id: "failed", name: "Failed search", available: false, message: "Search unavailable", appointments: [] },
+    { search_id: "many", name: "Many results", available: true, count: 50, truncated: true, appointments: [offered] },
+  ];
+  const { card } = await create([], undefined, [{ ...searchAccount, searches }]);
+  assert.match(card.shadowRoot.textContent, /Brak dostępnych terminów/);
+  assert.match(card.shadowRoot.textContent, /Search unavailable/);
+  assert.match(card.shadowRoot.textContent, /Pokazano 1 z 50/);
+});
+
+test("booked-list failure does not hide available search results", async () => {
+  const { card } = await create([], undefined, [searchAccount]);
+  card._hass.callWS = async (message) => {
+    if (message.service === "list_booked_appointments") throw new Error("unavailable");
+    return { response: { accounts: [searchAccount] } };
+  };
+  await card.refresh();
+  assert.match(card.shadowRoot.textContent, /Nie udało się pobrać wizyt/);
+  assert.equal(button(card, "Zarezerwuj").disabled, false);
+});
+
+test("manual refresh requests current search results", async () => {
+  const { card, calls } = await create([], undefined, [searchAccount]);
+  button(card, "Odśwież").click();
+  await tick();
+  assert.equal(calls.filter((call) => call.service === "list_booking_offers").at(-1).service_data.refresh, true);
 });

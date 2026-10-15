@@ -109,11 +109,15 @@
   "services": {
     "list_booking_offers": {
       "name": "Show bookable appointments",
-      "description": "Lists available appointments and their booking identifiers for the selected search.",
+      "description": "Lists searches and available appointments for all accounts. Optionally select one search.",
       "fields": {
         "entity_id": {
           "name": "Medicover search",
-          "description": "Select a search sensor."
+          "description": "Optional: select one search."
+        },
+        "refresh": {
+          "name": "Refresh search results",
+          "description": "Fetches fresh results when listing all searches."
         }
       }
     },

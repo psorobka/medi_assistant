@@ -1,5 +1,9 @@
 const TEXT = {
   pl: {
+    searches: "Szukajki", noSearches: "Nie masz jeszcze szukajek.", noOffers: "Brak dostępnych terminów.",
+    book: "Zarezerwuj", bookQuestion: "Zarezerwować tę wizytę?", confirmBook: "Zarezerwuj wizytę", backBook: "Wróć do terminów",
+    booking: "Rezerwowanie…", booked: "Wizyta została zarezerwowana.", searchError: "Nie udało się pobrać wyników szukajek. Odśwież listę.",
+    noBooking: "Rezerwacja online niedostępna", found: "Znalezione terminy", shown: "Pokazano", of: "z",
     title: "Moje wizyty", refresh: "Odśwież", loading: "Pobieranie wizyt…",
     empty: "Nie masz zaplanowanych wizyt.", noAccounts: "Dodaj konto Medi Assistant, aby zobaczyć wizyty.",
     cancel: "Odwołaj", unavailable: "Odwołanie online niedostępne", late: "Późne odwołanie",
@@ -10,6 +14,10 @@ const TEXT = {
     cancelled: "Wizyta została odwołana.", count: "Zaplanowane wizyty", retryLate: "Wizyta wymaga potwierdzenia późnego odwołania.",
   },
   en: {
+    searches: "Searches", noSearches: "You have no saved searches yet.", noOffers: "No appointments available.",
+    book: "Book", bookQuestion: "Book this appointment?", confirmBook: "Book appointment", backBook: "Back to appointments",
+    booking: "Booking…", booked: "Appointment booked.", searchError: "Unable to load search results. Refresh the list.",
+    noBooking: "Online booking unavailable", found: "Appointments found", shown: "Showing", of: "of",
     title: "My appointments", refresh: "Refresh", loading: "Loading appointments…",
     empty: "You have no planned appointments.", noAccounts: "Add a Medi Assistant account to see appointments.",
     cancel: "Cancel", unavailable: "Online cancellation unavailable", late: "Late cancellation",
@@ -32,6 +40,13 @@ const STYLE = `
   button:hover:not(:disabled) { background: var(--secondary-background-color); }
   button:focus-visible, input:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 3px; }
   button:disabled { opacity: .5; cursor: default; }
+  .search-heading { margin: 24px 0 10px; padding-top: 22px; border-top: 1px solid var(--divider-color); }
+  .search { margin-top: 12px; border: 1px solid var(--divider-color); border-radius: 12px; padding: 0 14px; }
+  .search summary { cursor: pointer; padding: 15px 0; font-size: 15px; font-weight: 600; }
+  .search-count { color: var(--secondary-text-color); font-size: 12px; margin: -4px 0 10px; }
+  .offer { display: flex; align-items: center; gap: 14px; }
+  .offer-details { flex: 1; min-width: 0; }
+  .book-primary, .book-primary:hover:not(:disabled) { background: var(--primary-color); color: var(--text-primary-color, white); }
   .body { padding: 0 20px 20px; }
   .account { margin: 8px 0 0; }
   h3 { margin: 0; padding: 10px 0 6px; font-size: 13px; font-weight: 600; color: var(--secondary-text-color); }
@@ -61,6 +76,8 @@ export class MediAssistantAppointments extends HTMLElement {
     super();
     this.attachShadow({ mode: "open" });
     this._accounts = [];
+    this._searchAccounts = [];
+    this._closedSearches = new Set();
     this._loaded = false;
     this._loading = false;
     this._busy = false;
@@ -104,37 +121,72 @@ export class MediAssistantAppointments extends HTMLElement {
     return response.response;
   }
 
-  async refresh(force = false) {
+  async refresh(force = false, refreshSearches = false) {
     if (!this._hass || this._loading || this._busy || (this._selected && !force)) return;
     this._loading = true;
     this._render();
-    try {
-      const listing = await this._service("list_booked_appointments");
-      if (!Array.isArray(listing?.accounts)) throw new Error("Invalid appointment list");
-      this._accounts = listing.accounts;
+    const [booked, searches] = await Promise.allSettled([
+      this._service("list_booked_appointments"),
+      this._service("list_booking_offers", { refresh: refreshSearches }),
+    ]);
+    if (booked.status === "fulfilled" && Array.isArray(booked.value?.accounts)) {
+      this._accounts = booked.value.accounts;
       this._loadError = false;
       this._loaded = true;
-      this._updated = Date.now();
-    } catch {
+    } else {
       this._loadError = true;
-    } finally {
-      this._loading = false;
-      this._render();
     }
+    if (searches.status === "fulfilled" && Array.isArray(searches.value?.accounts)) {
+      this._searchAccounts = searches.value.accounts;
+      this._searchError = false;
+      this._searchLoaded = true;
+    } else {
+      this._searchError = true;
+    }
+    this._updated = Date.now();
+    this._loading = false;
+    this._render();
   }
 
   _select(account, appointment) {
     if (this._busy) return;
-    this._selected = { account, appointment };
+    this._selected = { mode: "cancel", account, appointment };
     this._lateConfirmed = false;
     this._notice = null;
     this._render();
     this.shadowRoot.querySelector(".confirmation")?.focus();
   }
 
+  _selectBooking(account, search, appointment) {
+    if (this._busy || this._searchError || !appointment.booking_id) return;
+    this._selected = { mode: "book", account, search, appointment };
+    this._notice = null;
+    this._render();
+    this.shadowRoot.querySelector(".confirmation")?.focus();
+  }
+
+  async _bookSelected() {
+    const selected = this._selected;
+    if (!selected || selected.mode !== "book" || this._busy) return;
+    this._busy = true;
+    this._render();
+    let outcome;
+    try {
+      outcome = await this._service("book_appointment", { booking_id: selected.appointment.booking_id });
+      if (!outcome || typeof outcome.success !== "boolean") throw new Error("Invalid booking result");
+    } catch {
+      outcome = { success: false, status: "unknown" };
+    }
+    this._busy = false;
+    this._notice = { success: outcome.success, message: outcome.success ? this._text.booked : (outcome.message || this._text.unknown) };
+    this._selected = null;
+    // Read both lists after any outcome. Never automatically replay a write.
+    await this.refresh(true, true);
+  }
+
   async _cancelSelected() {
     const selected = this._selected;
-    if (!selected || this._busy || (selected.appointment.late_cancellation && !this._lateConfirmed)) return;
+    if (!selected || selected.mode === "book" || this._busy || (selected.appointment.late_cancellation && !this._lateConfirmed)) return;
     this._busy = true;
     this._render();
     let outcome;
@@ -157,7 +209,7 @@ export class MediAssistantAppointments extends HTMLElement {
     }
     this._selected = null;
     // Re-read even an ambiguous result. Never retry the cancellation itself.
-    await this.refresh(true);
+    await this.refresh(true, true);
   }
 
   _node(tag, className, text) {
@@ -197,7 +249,7 @@ export class MediAssistantAppointments extends HTMLElement {
     const heading = this._node("div");
     heading.append(this._node("h2", "", this._config?.title || t.title));
     if (this._loaded) heading.append(this._node("div", "subtitle", `${t.count}: ${this._accounts.reduce((sum, a) => sum + a.appointments.length, 0)}`));
-    header.append(heading, this._button(t.refresh, "", () => this.refresh(), this._loading || this._busy || !!this._selected));
+    header.append(heading, this._button(t.refresh, "", () => this.refresh(false, true), this._loading || this._busy || !!this._selected));
     const body = this._node("div", "body");
     if (this._notice) {
       const notice = this._node("div", `notice ${this._notice.success ? "success" : "danger"}`, this._notice.message);
@@ -210,13 +262,16 @@ export class MediAssistantAppointments extends HTMLElement {
       body.append(error);
     }
     if (this._selected) {
-      const { account, appointment } = this._selected;
+      const { account, appointment, search } = this._selected;
+      const booking = this._selected.mode === "book";
+      const question = booking ? t.bookQuestion : t.question;
       const panel = this._node("section", "confirmation");
       panel.tabIndex = -1;
-      panel.setAttribute("aria-label", t.question);
-      panel.append(this._node("h4", "", t.question), this._node("p", "detail", account.account_name));
+      panel.setAttribute("aria-label", question);
+      panel.append(this._node("h4", "", question), this._node("p", "detail", account.account_name));
+      if (search) panel.append(this._node("p", "detail", search.name));
       this._details(appointment, panel);
-      if (appointment.late_cancellation) {
+      if (!booking && appointment.late_cancellation) {
         panel.append(this._node("p", "", t.lateInfo));
         const label = this._node("label");
         const check = this._node("input");
@@ -231,9 +286,9 @@ export class MediAssistantAppointments extends HTMLElement {
         panel.append(label);
       }
       const actions = this._node("div", "actions");
-      const confirm = this._button(this._busy ? t.working : t.confirm, "primary", () => this._cancelSelected(), this._busy || (appointment.late_cancellation && !this._lateConfirmed));
+      const confirm = this._button(this._busy ? (booking ? t.booking : t.working) : (booking ? t.confirmBook : t.confirm), booking ? "book-primary" : "primary", () => booking ? this._bookSelected() : this._cancelSelected(), this._busy || (!booking && appointment.late_cancellation && !this._lateConfirmed));
       confirm.dataset.confirm = "true";
-      actions.append(this._button(t.back, "", () => { this._selected = null; this._render(); }, this._busy), confirm);
+      actions.append(this._button(booking ? t.backBook : t.back, "", () => { this._selected = null; this._render(); }, this._busy), confirm);
       panel.append(actions);
       body.append(panel);
     }
@@ -260,6 +315,42 @@ export class MediAssistantAppointments extends HTMLElement {
       }
       body.append(section);
     }
+    body.append(this._node("h2", "search-heading", t.searches));
+    if (this._searchError) body.append(this._node("div", "notice danger", t.searchError));
+    if (!this._searchLoaded && !this._searchError) body.append(this._node("div", "empty", t.loading));
+    for (const account of this._searchAccounts) {
+      const section = this._node("section", "account");
+      section.append(this._node("h3", "", account.account_name));
+      if (!account.searches.length) section.append(this._node("div", "empty", t.noSearches));
+      for (const search of account.searches) {
+        const details = this._node("details", "search");
+        const key = `${account.account_id}/${search.search_id}`;
+        details.open = !this._closedSearches.has(key);
+        details.addEventListener("toggle", () => {
+          if (!details.isConnected) return;
+          details.open ? this._closedSearches.delete(key) : this._closedSearches.add(key);
+        });
+        details.append(this._node("summary", "", search.name));
+        if (!search.available) {
+          details.append(this._node("div", "notice danger", search.message));
+        } else {
+          const count = search.truncated ? `${t.shown} ${search.appointments.length} ${t.of} ${search.count}` : `${t.found}: ${search.count}`;
+          details.append(this._node("div", "search-count", count));
+          if (!search.appointments.length) details.append(this._node("div", "empty", t.noOffers));
+          for (const appointment of search.appointments) {
+            const row = this._node("article", "visit offer");
+            const info = this._node("div", "offer-details");
+            this._details(appointment, info);
+            row.append(info, appointment.booking_id
+              ? this._button(t.book, "", () => this._selectBooking(account, search, appointment), this._busy || !!this._selected || this._searchError || this._loading)
+              : this._node("span", "detail", t.noBooking));
+            details.append(row);
+          }
+        }
+        section.append(details);
+      }
+      body.append(section);
+    }
     card.append(header, body);
     this.shadowRoot.replaceChildren(style, card);
   }
@@ -268,5 +359,5 @@ export class MediAssistantAppointments extends HTMLElement {
 if (!customElements.get("medi-assistant-appointments")) customElements.define("medi-assistant-appointments", MediAssistantAppointments);
 window.customCards = window.customCards || [];
 if (!window.customCards.some((card) => card.type === "medi-assistant-appointments")) {
-  window.customCards.push({ type: "medi-assistant-appointments", name: "Medi Assistant — Moje wizyty", description: "Zarezerwowane wizyty wszystkich kont i ich odwoływanie.", preview: true });
+  window.customCards.push({ type: "medi-assistant-appointments", name: "Medi Assistant — Moje wizyty", description: "Zarezerwowane wizyty, szukajki i rezerwowanie znalezionych terminów.", preview: true });
 }

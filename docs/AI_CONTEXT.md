@@ -22,6 +22,7 @@ podtrzymanie sesji, edytowalne szukajki i opcjonalne powiadomienia.
   oraz `medi_assistant.book_appointment` — przeglądanie terminów i rezerwacja przez akcje HA.
 - `cancellation.py`: lista zaplanowanych wizyt konta i uchwyty `cancellation_id` na 30 minut; ponowna weryfikacja tożsamości wizyty, canCancel i isLateCancellation (późne odwołanie wymaga confirm_late_cancellation), blokada powtórzeń po nieznanym wyniku. Akcje `list_booked_appointments` i `cancel_appointment`; testy `test_cancellation.py` i protokołu w `test_booking_api.py`.
 - `frontend.py` / `www/medi-assistant-card.js`: samodzielnie ładowana karta `custom:medi-assistant-appointments`, lista wszystkich kont bez encji/historii i bez zależności runtime JS; odwołanie z potwierdzeniem, zgoda na późne odwołanie, odświeżenie po operacji i co 5 min. `list_booked_appointments` bez entity_id zwraca accounts; ze wskazaną szukajką zachowuje wcześniejszy kontrakt appointments. Testy DOM: `tests/frontend/card.test.mjs`, `pnpm test:frontend`; Python `test_frontend.py`.
+- `search_offers.py`: `list_booking_offers` bez entity_id zwraca accounts/searches z nazwami, statusem i maks. 20 najbliższymi terminami; świeże uchwyty booking_id z aktualnych danych koordynatora, bez bookingString. `refresh: true` pobiera nowe wyniki; dotychczasowa odpowiedź pojedynczej szukajki pozostaje. Karta pokazuje sekcję Szukajki i potwierdza rezerwację konkretnego terminu, po zapisie odświeża obie listy. Wersja modułu karty v2.
 - `sensor.py`: istniejący kontrakt atrybutów + `booking_id`; bez `bookingString`.
 - Instrukcja: `docs/BOOKING.md`. Testy: `test_booking.py`, `test_booking_api.py`,
   regresje dotychczasowych sensorów/powiadomień w istniejących testach.
@@ -39,7 +40,7 @@ istniejącego kontenera, żeby nie uruchomić innej kopii. Dane sesji wyłączni
 w ignorowanym `.local-ha/config`. Dostęp lokalny bez logowania jest oparty
 na `trusted_networks`, a nie kopiowaniu sesji z produkcji.
 
-Kontrole końcowe: 219 testów Python i 8 testów interakcji karty przeszło, pokrycie 95% (próg 90%), Ruff check i format,
+Kontrole końcowe: 222 testy Python i 15 testów interakcji karty przeszło, pokrycie 95% (próg 90%), Ruff check i format,
 walidacja lokalnej konfiguracji HA. Hassfest/HACS wymagają CI; nie twierdź,
 że przeszły, jeśli nie uruchomiono workflow. Testy automatyczne nie korzystają z prawdziwego API. Rezerwacja przez akcję HA została potwierdzona na żywo na polecenie użytkownika. Odwołanie tej samej wizyty także potwierdzono na żywo na polecenie użytkownika: wynik cancelled i brak wizyty na ponownie pobranej liście Planned.
 
@@ -48,4 +49,4 @@ tej gałęzi bez polecenia użytkownika.
 
 Stały debug integracji i HTTP auth jest ustawiany przez launcher także w istniejącej konfiguracji testowej. Komunikaty integracji pomijają nazwy kont, szukajek i parametry OIDC; regresja logowania sprawdza ukrycie kodu autoryzacyjnego. Filtr sensora w services.yaml musi wskazywać domenę medi_assistant.
 
-Lokalny dashboard Moje wizyty: http://localhost:8123/medi-assistant/wizyty. Utworzony osobno, bez zmiany dotychczasowych widoków; karta sprawdzona w przeglądarce z prawdziwą pustą listą po odwołaniu wizyty. Potwierdzenia i błędy odwołania w karcie zweryfikowane na danych syntetycznych.
+Lokalny dashboard Moje wizyty: http://localhost:8123/medi-assistant/wizyty. Utworzony osobno, bez zmiany dotychczasowych widoków; karta sprawdzona w prawdziwej przeglądarce przez interfejs Playwright narzędzia: lista rezerwacji, szukajka i jej terminy, odświeżenie, zwijanie/rozwijanie, otwarcie potwierdzenia zgodnego z wybranym terminem i powrót bez rezerwacji. Przy aktualizacji v2 użyto ?v=2 w adresie dashboardu, bo przeglądarka zachowała HTML ładujący v1. Zapisana suita 15 testów interakcji używa happy-dom; samodzielnej suity E2E Playwright w CI nie dodano. Zapisy i błędy rezerwacji/odwołania w karcie zweryfikowane na danych syntetycznych.
