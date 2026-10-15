@@ -206,3 +206,19 @@ test("manual refresh requests current search results", async () => {
   await tick();
   assert.equal(calls.filter((call) => call.service === "list_booking_offers").at(-1).service_data.refresh, true);
 });
+
+
+test("add search link is present even without searches and uses native HA configuration", async () => {
+  const { card, calls } = await create([]);
+  const link = card.shadowRoot.querySelector('a[aria-label="Dodaj szukajkę"]');
+  assert.ok(link);
+  assert.equal(link.getAttribute("href"), "/config/integrations/integration/medi_assistant");
+  assert.equal(calls.filter((call) => call.service === "book_appointment").length, 0);
+});
+
+test("configuration link is hidden for non-admin users", async () => {
+  const { card } = await create([]);
+  card._hass.user = { is_admin: false };
+  card._render();
+  assert.equal(card.shadowRoot.querySelector(".add-search"), null);
+});

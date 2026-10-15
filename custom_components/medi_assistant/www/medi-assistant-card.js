@@ -1,6 +1,6 @@
 const TEXT = {
   pl: {
-    searches: "Szukajki", noSearches: "Nie masz jeszcze szukajek.", noOffers: "Brak dostępnych terminów.",
+    addSearch: "Dodaj szukajkę", searches: "Szukajki", noSearches: "Nie masz jeszcze szukajek.", noOffers: "Brak dostępnych terminów.",
     book: "Zarezerwuj", bookQuestion: "Zarezerwować tę wizytę?", confirmBook: "Zarezerwuj wizytę", backBook: "Wróć do terminów",
     booking: "Rezerwowanie…", booked: "Wizyta została zarezerwowana.", searchError: "Nie udało się pobrać wyników szukajek. Odśwież listę.",
     noBooking: "Rezerwacja online niedostępna", found: "Znalezione terminy", shown: "Pokazano", of: "z",
@@ -14,7 +14,7 @@ const TEXT = {
     cancelled: "Wizyta została odwołana.", count: "Zaplanowane wizyty", retryLate: "Wizyta wymaga potwierdzenia późnego odwołania.",
   },
   en: {
-    searches: "Searches", noSearches: "You have no saved searches yet.", noOffers: "No appointments available.",
+    addSearch: "Add search", searches: "Searches", noSearches: "You have no saved searches yet.", noOffers: "No appointments available.",
     book: "Book", bookQuestion: "Book this appointment?", confirmBook: "Book appointment", backBook: "Back to appointments",
     booking: "Booking…", booked: "Appointment booked.", searchError: "Unable to load search results. Refresh the list.",
     noBooking: "Online booking unavailable", found: "Appointments found", shown: "Showing", of: "of",
@@ -40,7 +40,11 @@ const STYLE = `
   button:hover:not(:disabled) { background: var(--secondary-background-color); }
   button:focus-visible, input:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 3px; }
   button:disabled { opacity: .5; cursor: default; }
-  .search-heading { margin: 24px 0 10px; padding-top: 22px; border-top: 1px solid var(--divider-color); }
+  .search-title { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin: 24px 0 10px; padding-top: 22px; border-top: 1px solid var(--divider-color); flex-wrap: wrap; }
+  .search-heading { margin: 0; }
+  .add-search { display: inline-flex; align-items: center; gap: 6px; box-sizing: border-box; min-height: 42px; padding: 9px 13px; border: 1px solid var(--divider-color); border-radius: 10px; color: var(--primary-color); text-decoration: none; font-size: 14px; }
+  .add-search:hover { background: var(--secondary-background-color); }
+  .add-search:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 3px; }
   .search { margin-top: 12px; border: 1px solid var(--divider-color); border-radius: 12px; padding: 0 14px; }
   .search summary { cursor: pointer; padding: 15px 0; font-size: 15px; font-weight: 600; }
   .search-count { color: var(--secondary-text-color); font-size: 12px; margin: -4px 0 10px; }
@@ -315,7 +319,15 @@ export class MediAssistantAppointments extends HTMLElement {
       }
       body.append(section);
     }
-    body.append(this._node("h2", "search-heading", t.searches));
+    const searchTitle = this._node("div", "search-title");
+    searchTitle.append(this._node("h2", "search-heading", t.searches));
+    if (this._hass?.user?.is_admin !== false) {
+      const addSearch = this._node("a", "add-search", "+ " + t.addSearch);
+      addSearch.href = "/config/integrations/integration/medi_assistant";
+      addSearch.setAttribute("aria-label", t.addSearch);
+      searchTitle.append(addSearch);
+    }
+    body.append(searchTitle);
     if (this._searchError) body.append(this._node("div", "notice danger", t.searchError));
     if (!this._searchLoaded && !this._searchError) body.append(this._node("div", "empty", t.loading));
     for (const account of this._searchAccounts) {

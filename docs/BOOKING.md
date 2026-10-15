@@ -34,7 +34,9 @@ konta i nazwy szukajki. Przy każdym terminie **Zarezerwuj** otwiera potwierdzen
 z danymi wizyty. Zapis używa dokładnego `booking_id` i dotychczasowego
 sprawdzenia aktualnej dostępności, ceny i wymaganych zgód. Wyświetlane jest
 do 20 najbliższych terminów na szukajkę; przy większej liczbie karta pokazuje
-liczbę wyświetlonych i wszystkich znalezionych terminów. Szukajki można zwijać.
+liczbę wyświetlonych i wszystkich znalezionych terminów. Szukajki można zwijać. Przycisk **Dodaj szukajkę** obok nagłówka
+otwiera konfigurację Medi Assistant, gdzie uruchomisz natywny formularz HA.
+Przycisk jest widoczny administratorom, także gdy nie ma jeszcze szukajek.
 **Odśwież** pobiera nowe wyniki; okresowe odświeżanie karty odczytuje wyniki
 ostatniej aktualizacji integracji. Błędy szukajek są odróżnione od braku terminów.
 Po próbie rezerwacji odświeżane są rezerwacje i wyniki szukajek, bez ponawiania zapisu.
