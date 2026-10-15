@@ -2,7 +2,8 @@
   "domain": "medi_assistant",
   "name": "Medi Assistant",
   "after_dependencies": [
-    "frontend"
+    "frontend",
+    "http"
   ],
   "codeowners": [
     "@psorobka"

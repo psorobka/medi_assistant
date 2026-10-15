@@ -1,7 +1,7 @@
 # Aktywne repozytorium
 
 Kod źródłowy: `custom_components/medi_assistant/`. Domena: `medi_assistant`.
-Przygotowywane wydanie: 1.1.0. Wersja manifestu, pyproject i cache modułu karty jest kontrolowana przez tests/test_release.py. Procedura PR → zielone CI → merge → tag/release jest w AGENTS.md; historia wydań w CHANGELOG.md.
+Wydanie: 1.1.0. Wersja manifestu, pyproject i cache modułu karty jest kontrolowana przez tests/test_release.py. Procedura PR → zielone CI → merge → tag/release jest w AGENTS.md; historia wydań w CHANGELOG.md.
 Gałąź robocza: `codex/booking-from-notification`.
 
 Kopia `C:/Users/Piotr/Claude/Projects/medi_assistant` z domeną `medicover`

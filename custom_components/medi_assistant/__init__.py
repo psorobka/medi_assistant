@@ -11,6 +11,7 @@ from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers import config_validation as cv
 
 from .api import MedicoverAuth, MedicoverClient, _DEFAULT_UA
 from .const import (
@@ -18,6 +19,7 @@ from .const import (
     CONF_SCAN_INTERVAL,
     CONF_USERNAME,
     DEFAULT_SCAN_INTERVAL,
+    DOMAIN,
     ENTRY_DEVICE_ID,
     ENTRY_DEVICE_UA,
     NOTIFY_ACTION_EVENT,
@@ -32,6 +34,8 @@ from .store import FiltersStore
 from .token_keepalive import TokenKeepAlive
 
 _LOGGER = logging.getLogger(__name__)
+
+CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 PLATFORMS = [Platform.SENSOR, Platform.BUTTON]
 
