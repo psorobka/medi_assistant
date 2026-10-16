@@ -89,7 +89,7 @@ Karta zawiera dwie części:
 | Część | Zawartość i działania |
 | --- | --- |
 | Zaplanowane wizyty | Wizyty wszystkich kont, również zarezerwowane poza integracją. Data, godzina, lekarz, specjalność i placówka oraz przycisk **Odwołaj**. Działa także dla kont bez szukajek. |
-| Szukajki | Wyszukiwania pogrupowane według konta, liczba wyników i do 20 najbliższych terminów na szukajkę. Przycisk **Zarezerwuj** przy konkretnym terminie. Listy można zwijać. |
+| Szukajki | Wyszukiwania pogrupowane według konta, liczba wyników i do 20 najbliższych terminów na szukajkę. Przycisk **Zarezerwuj** przy konkretnym terminie. Listy można zwijać; administrator może usunąć szukajkę przyciskiem **Usuń szukajkę**. |
 
 Rezerwacja i odwołanie wymagają potwierdzenia z danymi wybranej wizyty.
 Późne odwołanie wymaga dodatkowej zgody. Po operacji karta odświeża listy;
@@ -102,6 +102,10 @@ sprawdzania konta. Niedostępne dane są odróżnione od braku terminów.
 Przycisk **Dodaj szukajkę** otwiera natywną konfigurację integracji HA.
 Jest widoczny administratorom, również gdy nie ma jeszcze szukajek.
 
+**Usuń szukajkę** w rozwiniętej liście otwiera potwierdzenie z nazwą szukajki
+i konta. Usunięcie zatrzymuje jej wyszukiwanie i powiadomienia oraz usuwa sensor,
+ale nie odwołuje zarezerwowanych wizyt. Przycisk jest dostępny administratorom.
+
 ## Akcje HA (serwisy)
 
 Akcje znajdziesz w **Narzędzia deweloperskie → Akcje**. Możesz też wywoływać je
@@ -112,6 +116,7 @@ przez `response_variable`. Pełne nazwy mają prefiks **`medi_assistant.`**.
 | --- | --- | --- |
 | `get_search_filters` | Opcjonalnie `account_id`, następnie `region_id` i `specialty_id` | Bez parametrów: załadowane konta. Po wyborze konta: regiony; po wyborze regionu: specjalizacje; po wyborze specjalizacji: placówki i lekarze. Także lista języków. |
 | `create_search` | Wymagane `account_id`, `region_id`, `specialty_id`; opcjonalne filtry poniżej | Tworzy standardową szukajkę. Zwraca m.in. `search_id`, `title`, `data` i `created`. Identyczne ponowienie na tym samym koncie zwraca istniejącą szukajkę z `created: false`. |
+| `delete_search` | Wymagane `account_id` i `search_id`; uprawnienia administratora | Usuwa szukajkę i zapamiętany stan powiadomień. Nie odwołuje wizyt. Zwraca `success` i `deleted`; dla już usuniętej szukajki `deleted: false`. |
 | `list_booking_offers` | Opcjonalnie `entity_id`; bez niego można podać `refresh: true` | Szukajki wszystkich kont i do 20 najbliższych terminów na szukajkę. Z `entity_id`: terminy jednej szukajki. Każdy termin do rezerwacji zawiera `booking_id`. |
 | `book_appointment` | Wymagane `booking_id` | Rezerwuje wskazany termin i zwraca `success`, `status`, `message`. |
 | `list_booked_appointments` | Opcjonalnie `entity_id` szukajki | Zaplanowane wizyty wszystkich kont albo konta wskazanej szukajki. Wizyty zawierają `cancellation_id` do odwołania. |

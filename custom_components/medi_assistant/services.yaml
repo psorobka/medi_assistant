@@ -124,3 +124,19 @@ create_search:
       description: "Lista celów notify, taka jak w formularzu szukajki."
       required: false
       selector: {"object": {}}
+
+delete_search:
+  name: Usuń szukajkę
+  description: Usuwa szukajkę i stan powiadomień. Nie odwołuje wizyt. Wymaga administratora.
+  fields:
+    account_id:
+      name: Konto
+      required: true
+      selector:
+        config_entry:
+          integration: medi_assistant
+    search_id:
+      name: Szukajka
+      required: true
+      selector:
+        text:

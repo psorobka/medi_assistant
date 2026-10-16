@@ -61,6 +61,15 @@ async function service(state, message, response) {
   if (name === "list_booking_offers") {
     return state.readFailure === "searches" ? json(response, {}, 503) : json(response, { accounts: state.searches });
   }
+  if (name === "delete_search") {
+    await delay(250);
+    if (state.scenario === "delete-failed") return json(response, { success: false, message: "Nie udało się usunąć szukajki." });
+    const account = state.searches.find((item) => item.account_id === data.account_id);
+    if (!account) return json(response, {}, 400);
+    account.searches = account.searches.filter((search) => search.search_id !== data.search_id);
+    if (state.scenario === "delete-response-lost") return json(response, {}, 503);
+    return json(response, { success: true, deleted: true });
+  }
   if (name === "book_appointment") {
     await delay(250);
     if (state.scenario === "expired") return json(response, { success: false, status: "expired", message: "Wybrany termin wygasł." });

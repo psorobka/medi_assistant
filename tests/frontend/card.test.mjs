@@ -16,14 +16,15 @@ const appointment = {
 };
 const account = { account_id: "synthetic-account", account_name: "Example Account", success: true, appointments: [appointment] };
 
-async function create(accounts = [account], cancel = async () => ({ success: true, status: "cancelled" }), searchAccounts = [], book = async () => ({ success: true, status: "booked" })) {
+async function create(accounts = [account], cancel = async () => ({ success: true, status: "cancelled" }), searchAccounts = [], book = async () => ({ success: true, status: "booked" }), deleteSearch = async () => ({ success: true })) {
   const calls = [];
   let listing = accounts;
   let searchListing = searchAccounts;
   const card = document.createElement("medi-assistant-appointments");
   card.setConfig({});
-  card.hass = { language: "pl", connection: {}, callWS: async (message) => {
+  card.hass = { language: "pl", connection: {}, user: { is_admin: true }, callWS: async (message) => {
     calls.push(message);
+    if (message.service === "delete_search") return { response: await deleteSearch(message) };
     if (message.service === "book_appointment") return { response: await book(message) };
     if (message.service === "list_booking_offers") return { response: { accounts: structuredClone(searchListing) } };
     if (message.service === "cancel_appointment") return { response: await cancel(message) };
@@ -221,4 +222,54 @@ test("configuration link is hidden for non-admin users", async () => {
   card._hass.user = { is_admin: false };
   card._render();
   assert.equal(card.shadowRoot.querySelector(".add-search"), null);
+});
+
+
+test("search deletion shows account and name and can be dismissed", async () => {
+  const { card, calls } = await create([], undefined, [searchAccount]);
+  card.shadowRoot.querySelector(".delete-search").click();
+  const panel = card.shadowRoot.querySelector(".confirmation");
+  assert.match(panel.textContent, /Example Account/);
+  assert.match(panel.textContent, /My search/);
+  assert.equal(panel, card.shadowRoot.activeElement);
+  button(card, "Zostaw szukajkę").click();
+  assert.equal(card.shadowRoot.querySelector(".confirmation"), null);
+  assert.equal(calls.filter((call) => call.service === "delete_search").length, 0);
+});
+
+test("confirmed search deletion sends exact account/search once and refreshes", async () => {
+  let complete;
+  const { card, calls, setSearchListing } = await create([account], undefined, [searchAccount], undefined, () => new Promise((resolve) => { complete = resolve; }));
+  card.shadowRoot.querySelector(".delete-search").click();
+  button(card, "Usuń szukajkę").click();
+  button(card, "Usuwanie…").click();
+  assert.deepEqual(calls.find((call) => call.service === "delete_search").service_data, { account_id: "synthetic-account", search_id: "search-a" });
+  setSearchListing([{ ...searchAccount, searches: [] }]);
+  complete({ success: true, deleted: true });
+  await tick();
+  assert.equal(calls.filter((call) => call.service === "delete_search").length, 1);
+  assert.equal(card.shadowRoot.querySelectorAll("details.search").length, 0);
+  assert.match(card.shadowRoot.textContent, /Szukajka została usunięta/);
+  assert.match(card.shadowRoot.textContent, /Example Doctor/);
+  assert.equal(calls.filter((call) => call.service === "cancel_appointment").length, 0);
+});
+
+test("lost deletion response is not repeated and the list is re-read", async () => {
+  const { card, calls } = await create([], undefined, [searchAccount], undefined, async () => { throw new Error("lost response"); });
+  card.shadowRoot.querySelector(".delete-search").click();
+  button(card, "Usuń szukajkę").click();
+  await tick();
+  assert.match(card.shadowRoot.textContent, /Nie udało się potwierdzić usunięcia/);
+  assert.equal(calls.filter((call) => call.service === "delete_search").length, 1);
+  assert.equal(calls.filter((call) => call.service === "list_booking_offers").length, 2);
+});
+
+test("non-admin cannot select or invoke search deletion", async () => {
+  const { card, calls } = await create([], undefined, [searchAccount]);
+  card._hass.user.is_admin = false;
+  card._render();
+  assert.equal(card.shadowRoot.querySelector(".delete-search"), null);
+  card._selectDelete(searchAccount, searchAccount.searches[0]);
+  assert.equal(card._selected, undefined);
+  assert.equal(calls.filter((call) => call.service === "delete_search").length, 0);
 });

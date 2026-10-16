@@ -37,6 +37,12 @@ do 20 najbliższych terminów na szukajkę; przy większej liczbie karta pokazuj
 liczbę wyświetlonych i wszystkich znalezionych terminów. Szukajki można zwijać. Przycisk **Dodaj szukajkę** obok nagłówka
 otwiera konfigurację Medi Assistant, gdzie uruchomisz natywny formularz HA.
 Przycisk jest widoczny administratorom, także gdy nie ma jeszcze szukajek.
+W rozwiniętej szukajce administrator ma też **Usuń szukajkę**: potwierdzenie
+pokazuje konto i nazwę. Po usunięciu karta odświeża listę. Usuwane są szukajka,
+sensor i stan powiadomień; zarezerwowane wizyty pozostają bez zmian.
+Akcja `medi_assistant.delete_search` przyjmuje `account_id` i `search_id`,
+wymaga administratora i zwraca `success` oraz `deleted`. Powtórzenie dla
+nieistniejącej szukajki zwraca sukces z `deleted: false`.
 **Odśwież** pobiera nowe wyniki; okresowe odświeżanie karty odczytuje wyniki
 ostatniej aktualizacji integracji. Błędy szukajek są odróżnione od braku terminów.
 Po próbie rezerwacji odświeżane są rezerwacje i wyniki szukajek, bez ponawiania zapisu.

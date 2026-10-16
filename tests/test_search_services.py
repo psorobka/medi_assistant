@@ -1,7 +1,7 @@
 """Synthetic search action tests, including parity with native subentry flows."""
 
 import asyncio
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from homeassistant.config_entries import ConfigEntryState, ConfigSubentry
@@ -164,4 +164,78 @@ async def test_invalid_dates_return_form_error(hass, account):
         flow["flow_id"], {"date_from": "2026-11-30", "date_to": "2026-11-01"}
     )
     assert result["errors"] == {"base": "invalid_search"}
+    assert not account.subentries
+
+
+async def test_delete_search_clears_state_and_is_account_scoped(hass, account):
+    result = await call(hass, "create_search", params(account))
+    search_id = result["search_id"]
+    other = MockConfigEntry(domain="medi_assistant", title="Drugie konto")
+    other.add_to_hass(hass)
+    other.runtime_data = _make_runtime_data()
+    other.mock_state(hass, ConfigEntryState.LOADED)
+    assert await call(
+        hass, "delete_search", {"account_id": other.entry_id, "search_id": search_id}
+    ) == {"success": True, "deleted": False}
+    assert search_id in account.subentries
+    clear = account.runtime_data.filters_store.async_clear_subentry_state = AsyncMock()
+    assert await call(
+        hass, "delete_search", {"account_id": account.entry_id, "search_id": search_id}
+    ) == {"success": True, "deleted": True}
+    clear.assert_awaited_once_with(search_id)
+    assert search_id not in account.subentries
+    assert await call(
+        hass, "delete_search", {"account_id": account.entry_id, "search_id": search_id}
+    ) == {"success": True, "deleted": False}
+
+
+async def test_delete_search_rejects_non_admin(hass, account, hass_read_only_user):
+    from homeassistant.core import Context
+    from homeassistant.exceptions import Unauthorized
+
+    result = await call(hass, "create_search", params(account))
+    with pytest.raises(Unauthorized):
+        await hass.services.async_call(
+            "medi_assistant",
+            "delete_search",
+            {
+                "account_id": account.entry_id,
+                "search_id": result["search_id"],
+            },
+            blocking=True,
+            return_response=True,
+            context=Context(user_id=hass_read_only_user.id),
+        )
+    assert result["search_id"] in account.subentries
+
+
+async def test_delete_failure_preserves_search(hass, account):
+    result = await call(hass, "create_search", params(account))
+    account.runtime_data.filters_store.async_clear_subentry_state = AsyncMock(
+        side_effect=RuntimeError("synthetic failure")
+    )
+    with pytest.raises(RuntimeError):
+        await call(
+            hass,
+            "delete_search",
+            {"account_id": account.entry_id, "search_id": result["search_id"]},
+        )
+    assert result["search_id"] in account.subentries
+
+
+async def test_delete_unloaded_account_without_api_access(hass, account):
+    result = await call(hass, "create_search", params(account))
+    account.mock_state(hass, ConfigEntryState.NOT_LOADED)
+    with patch("custom_components.medi_assistant.search_services.FiltersStore") as store_class:
+        store = store_class.return_value
+        store.async_load = AsyncMock()
+        store.async_clear_subentry_state = AsyncMock()
+        outcome = await call(
+            hass,
+            "delete_search",
+            {"account_id": account.entry_id, "search_id": result["search_id"]},
+        )
+        store.async_load.assert_awaited_once()
+        store.async_clear_subentry_state.assert_awaited_once_with(result["search_id"])
+    assert outcome == {"success": True, "deleted": True}
     assert not account.subentries

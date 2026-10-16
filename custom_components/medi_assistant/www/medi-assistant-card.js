@@ -1,5 +1,7 @@
 const TEXT = {
   pl: {
+    deleteUnknown: "Nie udało się potwierdzić usunięcia. Odśwież listę szukajek przed kolejną próbą.",
+    deleteSearch: "Usuń szukajkę", deleteQuestion: "Usunąć tę szukajkę?", keepSearch: "Zostaw szukajkę", deleting: "Usuwanie…", deleted: "Szukajka została usunięta.", deleteInfo: "Usunięcie zatrzyma wyszukiwanie i powiadomienia. Zarezerwowane wizyty pozostaną bez zmian.",
     addSearch: "Dodaj szukajkę", searches: "Szukajki", noSearches: "Nie masz jeszcze szukajek.", noOffers: "Brak dostępnych terminów.",
     book: "Zarezerwuj", bookQuestion: "Zarezerwować tę wizytę?", confirmBook: "Zarezerwuj wizytę", backBook: "Wróć do terminów",
     booking: "Rezerwowanie…", booked: "Wizyta została zarezerwowana.", searchError: "Nie udało się pobrać wyników szukajek. Odśwież listę.",
@@ -14,6 +16,8 @@ const TEXT = {
     cancelled: "Wizyta została odwołana.", count: "Zaplanowane wizyty", retryLate: "Wizyta wymaga potwierdzenia późnego odwołania.",
   },
   en: {
+    deleteUnknown: "Unable to confirm deletion. Refresh the search list before trying again.",
+    deleteSearch: "Delete search", deleteQuestion: "Delete this search?", keepSearch: "Keep search", deleting: "Deleting…", deleted: "Search deleted.", deleteInfo: "This stops the search and its notifications. Booked appointments remain unchanged.",
     addSearch: "Add search", searches: "Searches", noSearches: "You have no saved searches yet.", noOffers: "No appointments available.",
     book: "Book", bookQuestion: "Book this appointment?", confirmBook: "Book appointment", backBook: "Back to appointments",
     booking: "Booking…", booked: "Appointment booked.", searchError: "Unable to load search results. Refresh the list.",
@@ -169,6 +173,34 @@ export class MediAssistantAppointments extends HTMLElement {
     this.shadowRoot.querySelector(".confirmation")?.focus();
   }
 
+  _selectDelete(account, search) {
+    if (this._busy || this._loading || this._hass?.user?.is_admin !== true) return;
+    this._selected = { mode: "delete", account, search };
+    this._notice = null;
+    this._render();
+    this.shadowRoot.querySelector(".confirmation")?.focus();
+  }
+
+  async _deleteSelected() {
+    const selected = this._selected;
+    if (!selected || selected.mode !== "delete" || this._busy || this._hass?.user?.is_admin !== true) return;
+    this._busy = true;
+    this._render();
+    let outcome;
+    try {
+      outcome = await this._service("delete_search", { account_id: selected.account.account_id, search_id: selected.search.search_id });
+      if (!outcome || typeof outcome.success !== "boolean") throw new Error("Invalid deletion result");
+    } catch {
+      outcome = { success: false };
+    }
+    this._busy = false;
+    this._notice = { success: outcome.success, message: outcome.success ? this._text.deleted : (outcome.message || this._text.deleteUnknown) };
+    this._selected = null;
+    if (outcome.success) this._closedSearches.delete(`${selected.account.account_id}/${selected.search.search_id}`);
+    // Re-read after a lost response, without automatically repeating deletion.
+    await this.refresh(true);
+  }
+
   async _bookSelected() {
     const selected = this._selected;
     if (!selected || selected.mode !== "book" || this._busy) return;
@@ -190,7 +222,7 @@ export class MediAssistantAppointments extends HTMLElement {
 
   async _cancelSelected() {
     const selected = this._selected;
-    if (!selected || selected.mode === "book" || this._busy || (selected.appointment.late_cancellation && !this._lateConfirmed)) return;
+    if (!selected || selected.mode !== "cancel" || this._busy || (selected.appointment.late_cancellation && !this._lateConfirmed)) return;
     this._busy = true;
     this._render();
     let outcome;
@@ -268,14 +300,16 @@ export class MediAssistantAppointments extends HTMLElement {
     if (this._selected) {
       const { account, appointment, search } = this._selected;
       const booking = this._selected.mode === "book";
-      const question = booking ? t.bookQuestion : t.question;
+      const deleting = this._selected.mode === "delete";
+      const question = deleting ? t.deleteQuestion : (booking ? t.bookQuestion : t.question);
       const panel = this._node("section", "confirmation");
       panel.tabIndex = -1;
       panel.setAttribute("aria-label", question);
       panel.append(this._node("h4", "", question), this._node("p", "detail", account.account_name));
       if (search) panel.append(this._node("p", "detail", search.name));
-      this._details(appointment, panel);
-      if (!booking && appointment.late_cancellation) {
+      if (deleting) panel.append(this._node("p", "", t.deleteInfo));
+      else this._details(appointment, panel);
+      if (!booking && !deleting && appointment.late_cancellation) {
         panel.append(this._node("p", "", t.lateInfo));
         const label = this._node("label");
         const check = this._node("input");
@@ -290,9 +324,14 @@ export class MediAssistantAppointments extends HTMLElement {
         panel.append(label);
       }
       const actions = this._node("div", "actions");
-      const confirm = this._button(this._busy ? (booking ? t.booking : t.working) : (booking ? t.confirmBook : t.confirm), booking ? "book-primary" : "primary", () => booking ? this._bookSelected() : this._cancelSelected(), this._busy || (!booking && appointment.late_cancellation && !this._lateConfirmed));
+      const confirmLabel = deleting ? t.deleteSearch : (booking ? t.confirmBook : t.confirm);
+      const workingLabel = deleting ? t.deleting : (booking ? t.booking : t.working);
+      const confirmAction = () => deleting ? this._deleteSelected() : booking ? this._bookSelected() : this._cancelSelected();
+      const requiresLate = !booking && !deleting && appointment.late_cancellation && !this._lateConfirmed;
+      const confirm = this._button(this._busy ? workingLabel : confirmLabel, booking ? "book-primary" : "primary", confirmAction, this._busy || requiresLate);
       confirm.dataset.confirm = "true";
-      actions.append(this._button(booking ? t.backBook : t.back, "", () => { this._selected = null; this._render(); }, this._busy), confirm);
+      const backLabel = deleting ? t.keepSearch : (booking ? t.backBook : t.back);
+      actions.append(this._button(backLabel, "", () => { this._selected = null; this._render(); }, this._busy), confirm);
       panel.append(actions);
       body.append(panel);
     }
@@ -343,6 +382,11 @@ export class MediAssistantAppointments extends HTMLElement {
           details.open ? this._closedSearches.delete(key) : this._closedSearches.add(key);
         });
         details.append(this._node("summary", "", search.name));
+        if (this._hass?.user?.is_admin === true) {
+          const actions = this._node("div", "actions");
+          actions.append(this._button(t.deleteSearch, "danger delete-search", () => this._selectDelete(account, search), this._busy || this._loading || !!this._selected || this._searchError));
+          details.append(actions);
+        }
         if (!search.available) {
           details.append(this._node("div", "notice danger", search.message));
         } else {

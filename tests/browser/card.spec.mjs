@@ -230,3 +230,45 @@ test("renders account and doctor HTML as inert text", async ({ page, fixture }) 
   await expect(page.getByRole("heading", { name: '<img src="x" onerror="window.patientHtmlExecuted=true">', exact: true })).toBeVisible();
   expect(await page.evaluate(() => window.patientHtmlExecuted)).toBeUndefined();
 });
+
+
+test("search deletion confirmation identifies account and can be dismissed", async ({ page, fixture }) => {
+  await fixture.open();
+  await page.locator("details.search").filter({ hasText: "Szukajka Beta" }).getByRole("button", { name: "Usuń szukajkę", exact: true }).click();
+  const panel = page.getByRole("region", { name: "Usunąć tę szukajkę?", exact: true });
+  await expect(panel).toContainText("Konto Beta");
+  await expect(panel).toContainText("Szukajka Beta");
+  await expect(panel).toBeFocused();
+  await panel.getByRole("button", { name: "Zostaw szukajkę" }).click();
+  await expect(panel).toHaveCount(0);
+  expect(attempts(await fixture.snapshot(), "delete_search")).toHaveLength(0);
+});
+
+for (const scenario of ["normal", "delete-response-lost"]) {
+  test(`search deletion removes only selected search without cancelling appointments: ${scenario}`, async ({ page, fixture }) => {
+    await fixture.open(scenario);
+    await page.locator("details.search").filter({ hasText: "Szukajka Beta" }).getByRole("button", { name: "Usuń szukajkę", exact: true }).click();
+    const panel = page.getByRole("region", { name: "Usunąć tę szukajkę?", exact: true });
+    await panel.getByRole("button", { name: "Usuń szukajkę", exact: true }).dblclick();
+    await expect(page.locator("details.search").filter({ hasText: "Szukajka Beta" })).toHaveCount(0);
+    await expect(page.locator("details.search").filter({ hasText: "Szukajka Alfa" })).toBeVisible();
+    await expect(plannedRow(page, "Lekarz Wizyty Beta")).toBeVisible();
+    const state = await fixture.snapshot();
+    expect(attempts(state, "delete_search")).toEqual([{ service: "delete_search", data: { account_id: "account-b", search_id: "search-b" } }]);
+    expect(state.cancelWrites).toBe(0);
+    expect(state.bookWrites).toBe(0);
+  });
+}
+
+test("failed deletion preserves the search", async ({ page, fixture }) => {
+  await fixture.open("delete-failed");
+  await page.locator("details.search").first().getByRole("button", { name: "Usuń szukajkę", exact: true }).click();
+  await page.getByRole("region", { name: "Usunąć tę szukajkę?" }).getByRole("button", { name: "Usuń szukajkę", exact: true }).click();
+  await expect(page.getByRole("status")).toContainText("Nie udało się usunąć szukajki.");
+  await expect(page.locator("details.search")).toHaveCount(2);
+});
+
+test("non-admin has no search deletion buttons", async ({ page, fixture }) => {
+  await fixture.open("normal", false);
+  await expect(page.getByRole("button", { name: "Usuń szukajkę", exact: true })).toHaveCount(0);
+});

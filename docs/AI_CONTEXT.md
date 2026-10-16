@@ -1,8 +1,8 @@
 # Aktywne repozytorium
 
 Kod źródłowy: `custom_components/medi_assistant/`. Domena: `medi_assistant`.
-Wydanie: 1.2.0. Wersja manifestu, pyproject i cache modułu karty jest kontrolowana przez tests/test_release.py. Procedura PR → zielone CI → merge → tag/release jest w AGENTS.md; historia wydań w CHANGELOG.md.
-Testy przeglądarkowe: `playwright.config.mjs`, `tests/browser/`, opis w `docs/BROWSER_TESTS.md`; `pnpm test:browser`. Kod produktu ma wersję 1.2.0; zmiany samych testów nie wymagają wydania.
+Wydanie: 1.3.0. Wersja manifestu, pyproject i cache modułu karty jest kontrolowana przez tests/test_release.py. Procedura PR → zielone CI → merge → tag/release jest w AGENTS.md; historia wydań w CHANGELOG.md.
+Testy przeglądarkowe: `playwright.config.mjs`, `tests/browser/`, opis w `docs/BROWSER_TESTS.md`; `pnpm test:browser`. Kod produktu ma wersję 1.3.0; zmiany samych testów nie wymagają wydania.
 
 Kopia `C:/Users/Piotr/Claude/Projects/medi_assistant` z domeną `medicover`
 to odrębny, stary prototyp. Nie montuj jej w lokalnym HA ani nie przenoś
@@ -49,3 +49,5 @@ Stały debug integracji i HTTP auth jest ustawiany przez launcher także w istni
 Lokalny dashboard Moje wizyty: http://localhost:8123/medi-assistant/wizyty. Utworzony osobno, bez zmiany dotychczasowych widoków; karta sprawdzona w prawdziwej przeglądarce przez interfejs Playwright narzędzia: lista rezerwacji, szukajka i jej terminy, odświeżenie, zwijanie/rozwijanie, otwarcie potwierdzenia zgodnego z wybranym terminem i powrót bez rezerwacji. Przy aktualizacji v2 użyto ?v=2 w adresie dashboardu, bo przeglądarka zachowała HTML ładujący v1. Zapisane testy interakcji obejmują happy-dom i Playwright/Chromium; CI uruchamia oba zestawy. Zakres Chromium to karta z fikcyjnym HA, a nie pełna instalacja HA. Zapisy i błędy rezerwacji/odwołania w karcie zweryfikowane na danych syntetycznych.
 
 - `search_services.py` / `search_config.py`: `get_search_filters` i `create_search`; wspólny zapis danych z config flow, walidacja filtrów i dat, blokada duplikatów per konto. Testy `test_search_services.py`; kontrakt w `docs/BOOKING.md`.
+
+- Usuwanie szukajki z karty: delete_search (administrator, account_id + search_id), potwierdzenie nazwy/konta, usunięcie stanu powiadomień i subentry bez odwoływania wizyt. Testy Python, DOM i Chromium obejmują uprawnienia, błąd, utratę odpowiedzi i izolację kont.
