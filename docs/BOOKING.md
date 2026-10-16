@@ -76,11 +76,26 @@ referencja: [MediCony](https://github.com/bartekmp/MediCony/blob/main/src/medico
 ## Przycisk w powiadomieniu
 
 W szczegółach szukajki wybierz usługę telefonu `notify.mobile_app_…`.
-Powiadomienie z nowym terminem ma do trzech przycisków: **Zarezerwuj**,
-**Drzemka (24h)** i **Usuń**. „Zarezerwuj” dotyczy pierwszego terminu
-wyświetlonego w wiadomości; terminy są sortowane chronologicznie.
-Kliknięcie rezerwuje wizytę bez otwierania aplikacji. Wynik zastępuje
-powiadomienie i nie zawiera ponownego przycisku rezerwacji.
+Dla maksymalnie trzech najbliższych nowych terminów na szukajkę podczas jednego
+sprawdzenia wysyłane są osobne powiadomienia. Każde zawiera jedną wizytę oraz
+przyciski **Zarezerwuj**, **Wycisz szukajkę (24h)** i **Usuń szukajkę**.
+Przycisk rezerwacji pojawia się tylko dla terminu z aktualnym uchwytem rezerwacji.
+Pozostałe nowe terminy są zgłaszane zbiorczo, bez przycisku rezerwacji.
+Wszystkie wykryte terminy są zapamiętywane; nadmiarowe nie są wysyłane później
+jako kolejna paczka powiadomień.
+
+Kliknięcie **Zarezerwuj** rezerwuje dokładnie tę wizytę bez dodatkowego potwierdzenia.
+Wynik zastępuje powiadomienie wybranego terminu i nie zawiera ponownego przycisku
+rezerwacji. Powiadomienia innych terminów mają osobne identyfikatory.
+Wyciszenie i usunięcie dotyczą całej szukajki.
+
+W opcjach konta ustaw **Widok otwierany z powiadomienia** (`notification_path`),
+np. `/dashboard-zdrowie/medicover`. Względna ścieżka jest przekazywana jako
+`url` dla iOS i `clickAction` dla Androida. Kliknięcie treści powiadomienia,
+podsumowania lub wyniku rezerwacji otwiera ten widok w aplikacji HA.
+Puste pole pozostawia domyślne zachowanie aplikacji; zmiana działa bez restartu.
+Widok z kartą trzeba wcześniej utworzyć we własnym dashboardzie.
+[Dokumentacja Companion](https://companion.home-assistant.io/docs/notifications/notifications-basic/#opening-a-url).
 
 Encje `notify.*` i `notify.persistent_notification` nadal dostają zwykłe
 wiadomości, bez przycisków. Integracja obsługuje powiadomienia opcjonalnie,

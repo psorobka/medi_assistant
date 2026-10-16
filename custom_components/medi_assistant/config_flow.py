@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from typing import TYPE_CHECKING, Any
 
 import aiohttp
@@ -35,6 +36,7 @@ from .api import MedicoverAuth, MedicoverClient, _new_device_id, _DEFAULT_UA
 from .const import (
     CONF_MFA_CODE,
     CONF_SCAN_INTERVAL,
+    CONF_NOTIFICATION_PATH,
     CONF_REGION_ID,
     CONF_REGION_NAME,
     CONF_SPECIALTY_ID,
@@ -326,11 +328,23 @@ class MedicoverOptionsFlowHandler(OptionsFlow):
         self._entry = config_entry
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        errors = {}
         if user_input is not None:
-            return self.async_create_entry(data=user_input)
+            path = user_input.get(CONF_NOTIFICATION_PATH, "").strip()
+            if path and not re.fullmatch(r"/(?!/)[^\s\\]*", path):
+                errors[CONF_NOTIFICATION_PATH] = "invalid_notification_path"
+            else:
+                return self.async_create_entry(
+                    data={
+                        **self._entry.options,
+                        **user_input,
+                        CONF_NOTIFICATION_PATH: path,
+                    }
+                )
 
         return self.async_show_form(
             step_id="init",
+            errors=errors,
             data_schema=vol.Schema(
                 {
                     vol.Required(
@@ -339,6 +353,10 @@ class MedicoverOptionsFlowHandler(OptionsFlow):
                     ): NumberSelector(
                         NumberSelectorConfig(min=5, max=120, step=5, mode=NumberSelectorMode.BOX)
                     ),
+                    vol.Optional(
+                        CONF_NOTIFICATION_PATH,
+                        default=self._entry.options.get(CONF_NOTIFICATION_PATH, ""),
+                    ): TextSelector(),
                 }
             ),
         )

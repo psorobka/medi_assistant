@@ -46,9 +46,16 @@
       "init": {
         "title": "Ustawienia Medicover",
         "data": {
-          "scan_interval": "Interwał odświeżania (minuty)"
+          "scan_interval": "Interwał odświeżania (minuty)",
+          "notification_path": "Widok otwierany z powiadomienia"
+        },
+        "data_description": {
+          "notification_path": "Opcjonalna ścieżka widoku HA, np. /dashboard-zdrowie/medicover. Puste pole pozostawia domyślny widok aplikacji."
         }
       }
+    },
+    "error": {
+      "invalid_notification_path": "Podaj względną ścieżkę HA zaczynającą się od pojedynczego /, bez spacji i ukośników wstecznych."
     }
   },
   "config_subentries": {
@@ -81,7 +88,7 @@
             "notify_target": "Powiadomienie (encja lub usługa notify)"
           },
           "data_description": {
-            "notify_target": "Wybierz telefon (notify.mobile_app_…), aby dostać push z przyciskami Drzemka/Usuń. Dodaj notify.persistent_notification, aby mieć trwały wpis w panelu Home Assistant (bez przycisków)."
+            "notify_target": "Wybierz notify.mobile_app_…, aby otrzymywać osobne powiadomienia o terminach z przyciskiem rezerwacji. Inne cele dostają zwykłą listę."
           }
         }
       },
@@ -105,8 +112,8 @@
     }
   },
   "common": {
-    "action_snooze": "Drzemka (24h)",
-    "action_delete": "Usuń",
+    "action_snooze": "Wycisz szukajkę (24h)",
+    "action_delete": "Usuń szukajkę",
     "action_book": "Zarezerwuj"
   },
   "services": {

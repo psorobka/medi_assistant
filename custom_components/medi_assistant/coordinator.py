@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import time
 from datetime import datetime, timedelta
+from hashlib import sha256
 from typing import TYPE_CHECKING, Any
 
 from homeassistant.config_entries import ConfigEntry
@@ -10,12 +11,13 @@ from homeassistant.core import Event, HomeAssistant
 from homeassistant.helpers.translation import async_get_translations
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from .booking import BookingManager
+from .booking import BookingManager, slot_identity
 from .const import (
     ACTION_BOOK_PREFIX,
     ACTION_DELETE_PREFIX,
     ACTION_SNOOZE_PREFIX,
     CONF_NOTIFY_TARGET,
+    CONF_NOTIFICATION_PATH,
     CONF_SCAN_INTERVAL,
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
@@ -32,11 +34,12 @@ _LOGGER = logging.getLogger(__name__)
 # Cap how many slots are listed in one notification (first-detection of a broad
 # search can match many at once).
 _MAX_NOTIFY_LINES = 15
+_MAX_MOBILE_OFFERS = 3
 
 # Fallbacks used if the translation cache has no entry for the user's language.
 _DEFAULT_ACTION_TITLES = {
-    "action_snooze": "Drzemka (24h)",
-    "action_delete": "Usuń",
+    "action_snooze": "Wycisz szukajkę (24h)",
+    "action_delete": "Usuń szukajkę",
     "action_book": "Zarezerwuj",
 }
 
@@ -165,6 +168,14 @@ class MedicoverCoordinator(DataUpdateCoordinator[dict[str, list[dict[str, Any]]]
         entity_id) and legacy notify services (notify.<service> with message).
         """
         new_slots = sorted(new_slots, key=lambda slot: slot.get("appointmentDate") or "")
+        service = target.split(".", 1)[-1]
+        if self.hass.states.get(target) is None and service.startswith("mobile_app_"):
+            for slot in new_slots[:_MAX_MOBILE_OFFERS]:
+                await self._async_notify_mobile(subentry, service, slot=slot)
+            remaining = len(new_slots) - _MAX_MOBILE_OFFERS
+            if remaining > 0:
+                await self._async_notify_mobile(subentry, service, remaining=remaining)
+            return
         lines = [_format_slot(s) for s in new_slots]
         shown = lines[:_MAX_NOTIFY_LINES]
         body = "\n".join(shown)
@@ -192,14 +203,6 @@ class MedicoverCoordinator(DataUpdateCoordinator[dict[str, list[dict[str, Any]]]
                 # persistent_notification, telegram) gets a plain message.
                 service = target.split(".", 1)[1] if "." in target else target
                 payload = {"title": title, "message": message}
-                if service.startswith("mobile_app_"):
-                    actions = await self._async_action_buttons(subentry, new_slots)
-                    if actions and actions[0]["action"].startswith(ACTION_BOOK_PREFIX + "__"):
-                        payload["message"] += "\n„Zarezerwuj” dotyczy pierwszego terminu powyżej."
-                    payload["data"] = {
-                        "actions": actions,
-                        "tag": f"medi_booking_{self._entry.entry_id}_{subentry.subentry_id}",
-                    }
                 await self.hass.services.async_call(
                     "notify",
                     service,
@@ -207,6 +210,49 @@ class MedicoverCoordinator(DataUpdateCoordinator[dict[str, list[dict[str, Any]]]
                     blocking=False,
                 )
         except Exception as err:  # noqa: BLE001 — notification failure must not break polling
+            _LOGGER.warning("Notification delivery failed (%s)", type(err).__name__)
+
+    def _notification_data(self, subentry_id: str, suffix: str) -> dict[str, Any]:
+        """Opaque per-offer tags; relative paths work on Android and iOS."""
+        data = {"tag": f"medi_booking_{self._entry.entry_id}_{subentry_id}_{suffix}"}
+        if path := self._entry.options.get(CONF_NOTIFICATION_PATH):
+            data.update(url=path, clickAction=path)
+        return data
+
+    async def _async_notify_mobile(
+        self,
+        subentry: Any,
+        service: str,
+        *,
+        slot: dict | None = None,
+        remaining: int = 0,
+    ) -> None:
+        """One exact offer or an overflow summary without a booking action."""
+        slots = [slot] if slot is not None else []
+        suffix = "summary"
+        if slot is not None:
+            offer = self.booking.public_slots(subentry.subentry_id, slots)[0]
+            suffix = (
+                offer.get("booking_id")
+                or sha256(repr(slot_identity(slot)).encode()).hexdigest()[:24]
+            )
+            message = f"Nowy termin:\n{_format_slot(slot)}"
+        else:
+            message = f"Pozostałe nowe terminy: {remaining}. Otwórz kartę Medi Assistant, aby je zobaczyć."
+        data = self._notification_data(subentry.subentry_id, suffix)
+        data["actions"] = await self._async_action_buttons(subentry, slots)
+        try:
+            await self.hass.services.async_call(
+                "notify",
+                service,
+                {
+                    "title": f"{self._entry.title} — {subentry.title}",
+                    "message": message,
+                    "data": data,
+                },
+                blocking=False,
+            )
+        except Exception as err:
             _LOGGER.warning("Notification delivery failed (%s)", type(err).__name__)
 
     async def _async_action_buttons(
@@ -281,7 +327,7 @@ class MedicoverCoordinator(DataUpdateCoordinator[dict[str, list[dict[str, Any]]]
                 else:
                     service = target.split(".", 1)[-1]
                     if service.startswith("mobile_app_"):
-                        payload["data"] = {"tag": f"medi_booking_{entry_id}_{subentry_id}"}
+                        payload["data"] = self._notification_data(subentry_id, booking_id)
                     await self.hass.services.async_call("notify", service, payload, blocking=False)
             except Exception as err:
                 _LOGGER.warning("Could not deliver booking result (%s)", type(err).__name__)

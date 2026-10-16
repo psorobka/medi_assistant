@@ -20,6 +20,7 @@ CONF_USERNAME = "username"
 CONF_PASSWORD = "password"
 CONF_MFA_CODE = "mfa_code"
 CONF_SCAN_INTERVAL = "scan_interval"
+CONF_NOTIFICATION_PATH = "notification_path"
 
 # Subentry data keys
 CONF_REGION_ID = "region_id"

@@ -195,13 +195,28 @@ możesz wpisać ręcznie.
 
 - Nowy termin jest zgłaszany przy pierwszym wykryciu, również po dodaniu szukajki.
 - Zapamiętane terminy są przechowywane na dysku, więc restart nie wysyła ich ponownie.
-- Wiadomość zawiera do 15 nowych terminów i informację o pozostałych.
+- Telefon (`notify.mobile_app_…`) otrzymuje osobne powiadomienie dla każdego
+  z maksymalnie **3 najbliższych nowych terminów na szukajkę podczas jednego sprawdzenia**.
+  Pozostałe terminy są zgłaszane zbiorczo, bez przycisku rezerwacji.
+- Inne cele powiadomień otrzymują listę do 15 nowych terminów i liczbę pozostałych.
 - Usługa telefonu `notify.mobile_app_…` umożliwia przyciski **Zarezerwuj**,
-  **Drzemka (24h)** i **Usuń**. Rezerwacja dotyczy pierwszego terminu w wiadomości
-  i następuje po kliknięciu, bez dodatkowego formularza potwierdzenia.
-  **Drzemka** wycisza szukajkę na 24 godziny, a **Usuń** usuwa szukajkę.
+  **Wycisz szukajkę (24h)** i **Usuń szukajkę**. Rezerwacja dotyczy jednego terminu
+  pokazanego w tej wiadomości i następuje po kliknięciu, bez dodatkowego formularza
+  potwierdzenia. Wyciszenie i usunięcie dotyczą całej szukajki.
 - Encje powiadomień i `notify.persistent_notification` otrzymują zwykłą wiadomość,
   bez przycisków. Ten ostatni cel pozwala wyświetlać wiadomości w panelu HA.
+
+### Widok otwierany po kliknięciu powiadomienia
+
+W opcjach konta (**Konfiguruj**) ustaw **Widok otwierany z powiadomienia**,
+np. `/dashboard-zdrowie/medicover`. Skopiuj ścieżkę z adresu własnego dashboardu
+z kartą Medi Assistant, bez nazwy serwera. Kliknięcie treści powiadomienia
+mobilnego otworzy ten widok w aplikacji HA na Androidzie lub iOS; przycisk
+**Zarezerwuj** nadal wykona rezerwację wskazanego terminu.
+
+Ustawienie dotyczy wszystkich szukajek konta, także powiadomień zbiorczych
+i wyników rezerwacji. Puste pole pozostawia domyślny widok aplikacji.
+Zapis ścieżki nie wymaga restartu. Ścieżka wskazuje istniejący widok — nie tworzy go.
 
 ## Sensor i własne automatyzacje
 

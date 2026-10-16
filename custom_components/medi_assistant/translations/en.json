@@ -46,9 +46,16 @@
       "init": {
         "title": "Medicover settings",
         "data": {
-          "scan_interval": "Refresh interval (minutes)"
+          "scan_interval": "Refresh interval (minutes)",
+          "notification_path": "View opened from notifications"
+        },
+        "data_description": {
+          "notification_path": "Optional HA dashboard path, e.g. /dashboard-health/medicover. Leave empty to use the app default."
         }
       }
+    },
+    "error": {
+      "invalid_notification_path": "Enter a relative HA path starting with a single /, without spaces or backslashes."
     }
   },
   "config_subentries": {
@@ -81,7 +88,7 @@
             "notify_target": "Notification (notify entity or service)"
           },
           "data_description": {
-            "notify_target": "Pick your phone (notify.mobile_app_…) to get a push with Snooze/Delete buttons. Add notify.persistent_notification to also keep a sticky entry in the Home Assistant panel (no buttons)."
+            "notify_target": "Choose notify.mobile_app_… for individual appointment notifications with booking actions. Other targets receive a plain list."
           }
         }
       },
@@ -105,8 +112,8 @@
     }
   },
   "common": {
-    "action_snooze": "Snooze (24h)",
-    "action_delete": "Delete",
+    "action_snooze": "Mute search (24h)",
+    "action_delete": "Delete search",
     "action_book": "Book"
   },
   "services": {

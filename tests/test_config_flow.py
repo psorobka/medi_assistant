@@ -541,3 +541,30 @@ async def test_config_flow_entry_has_search_subentry_type(hass: HomeAssistant, p
     assert len(entries) == 1
     subentry_types = entries[0].supported_subentry_types
     assert SUBENTRY_TYPE_SEARCH in subentry_types
+
+
+@pytest.mark.parametrize("path", ["/dashboard-health/medicover", ""])
+async def test_options_notification_path_can_be_saved_and_cleared(hass, path):
+    entry = MockConfigEntry(domain=DOMAIN, options={"notification_path": "/old/view"})
+    entry.add_to_hass(hass)
+    flow = await hass.config_entries.options.async_init(entry.entry_id)
+    result = await hass.config_entries.options.async_configure(
+        flow["flow_id"], {"scan_interval": 10, "notification_path": path}
+    )
+    assert result["type"] == FlowResultType.CREATE_ENTRY
+    assert entry.options["notification_path"] == path
+
+
+@pytest.mark.parametrize(
+    "path", ["https://example.com", "//example.com", "dashboard/view", "/bad path", "/bad\\path"]
+)
+async def test_options_reject_invalid_notification_paths(hass, path):
+    entry = MockConfigEntry(domain=DOMAIN)
+    entry.add_to_hass(hass)
+    flow = await hass.config_entries.options.async_init(entry.entry_id)
+    result = await hass.config_entries.options.async_configure(
+        flow["flow_id"], {"scan_interval": 10, "notification_path": path}
+    )
+    assert result["type"] == FlowResultType.FORM
+    assert result["errors"] == {"notification_path": "invalid_notification_path"}
+    assert not entry.options

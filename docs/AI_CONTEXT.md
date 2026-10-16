@@ -17,7 +17,7 @@ podtrzymanie sesji, edytowalne szukajki i opcjonalne powiadomienia.
 - `api.py`: `async_check_booking` (cena i dodatkowe potwierdzenia),
   `async_book_appointment` (POST v2); istniejący auth i wspólna sesja API.
 - `coordinator.py`: trzeci przycisk w natywnych powiadomieniach mobile_app,
-  odpowiedź po rezerwacji. Zarezerwuj dotyczy pierwszego wyświetlonego terminu.
+  odpowiedź po rezerwacji. Osobne powiadomienia mobile_app dla maks. 3 nowych terminów per szukajka/poll + podsumowanie bez rezerwacji; unikalne tagi i wynik zastępujący właściwy termin. Opcja konta notification_path otwiera widok HA na Androidzie/iOS, działa bez reloadu.
 - `services.py` / `services.yaml`: `medi_assistant.list_booking_offers`
   oraz `medi_assistant.book_appointment` — przeglądanie terminów i rezerwacja przez akcje HA.
 - `cancellation.py`: lista zaplanowanych wizyt konta i uchwyty `cancellation_id` na 30 minut; ponowna weryfikacja tożsamości wizyty, canCancel i isLateCancellation (późne odwołanie wymaga confirm_late_cancellation), blokada powtórzeń po nieznanym wyniku. Akcje `list_booked_appointments` i `cancel_appointment`; testy `test_cancellation.py` i protokołu w `test_booking_api.py`.

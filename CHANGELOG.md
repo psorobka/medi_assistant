@@ -6,6 +6,8 @@
 
 - Actions get_search_filters and create_search for chatbot and automation access. Searches use the same account subentries, validation and titles as the native configuration flow.
 - Region-scoped filter validation, date range checks and duplicate protection for repeated or concurrent creation requests.
+- Individual mobile notifications for up to three nearest new appointments per search and poll, plus an overflow summary without booking. Per-offer tags keep booking results attached to the selected appointment.
+- Optional account-level Home Assistant view path for notification taps on Android and iOS; clearer search-wide mute/delete labels.
 
 ## 1.1.0 — 2026-10-15
 
