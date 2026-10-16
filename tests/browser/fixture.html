@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Medi Assistant — browser test fixture</title>
+  <style>
+    :root { --primary-color: #087e9d; --primary-text-color: #222; --secondary-text-color: #636b73; --divider-color: #dde3e7; --secondary-background-color: #f3f6f8; --error-color: #b83127; --success-color: #277a48; }
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 16px; background: #f3f6f8; font-family: Arial, sans-serif; }
+    main { max-width: 760px; margin: 0 auto; }
+    ha-card { display: block; border-radius: 14px; border: 1px solid #dde3e7; background: white; }
+  </style>
+</head>
+<body>
+  <main aria-label="Karta testowa"></main>
+  <script type="module">
+    import "/medi-assistant-card.js";
+    const params = new URLSearchParams(location.search);
+    const session = params.get("session");
+    const card = document.createElement("medi-assistant-appointments");
+    card.setConfig({});
+    card.hass = {
+      language: "pl", connection: {}, user: { is_admin: params.get("admin") !== "0" },
+      async callWS(message) {
+        const response = await fetch(`/__test/service?session=${encodeURIComponent(session)}`, {
+          method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(message),
+        });
+        if (!response.ok) throw new Error("Synthetic HA service unavailable");
+        return { response: await response.json() };
+      },
+    };
+    document.querySelector("main").append(card);
+  </script>
+</body>
+</html>

@@ -222,3 +222,5 @@ Zarezerwowane wizyty pokaże `medi_assistant.list_booked_appointments`.
 Wybraną wizytę odwołasz akcją `medi_assistant.cancel_appointment`, podając jej `cancellation_id`.
 
 Karta **Medi Assistant — Moje wizyty** pokazuje rezerwacje wszystkich kont oraz szukajki i znalezione terminy. Pozwala rezerwować i odwoływać wizyty z potwierdzeniem. Po restarcie HA dodaj ją z listy kart dashboardu. [Instrukcja](docs/BOOKING.md#karta-moje-wizyty).
+
+Automated Chromium card tests (desktop and phone): `pnpm test:browser`. [Setup, coverage and isolation](docs/BROWSER_TESTS.md).

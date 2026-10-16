@@ -49,6 +49,8 @@ encji, historii HA, localStorage ani logów integracji.
 
 Testy interakcji: Node 24, `pnpm install --frozen-lockfile --ignore-scripts`,
 `pnpm test:frontend` (syntetyczne dane i fałszywe odpowiedzi HA).
+Testy w prawdziwym Chromium: `pnpm test:browser` — komputer i telefon, z
+fikcyjnymi usługami HA. [Uruchomienie i zakres](BROWSER_TESTS.md).
 Karta używa [API własnych kart HA](https://developers.home-assistant.io/docs/frontend/custom-ui/custom-card/).
 
 ## Odwołanie wizyty przez akcje HA
