@@ -7,9 +7,11 @@ from homeassistant.config_entries import ConfigSubentry
 from homeassistant.core import SupportsResponse, callback
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers.service import async_register_admin_service
 
 from .const import DOMAIN, LANGUAGES, SUBENTRY_TYPE_SEARCH
 from .search_config import _subentry_title, build_search_data
+from .store import FiltersStore
 
 
 @callback
@@ -19,12 +21,12 @@ def async_setup_search_services(hass):
         return
     locks = {}
 
-    def account(account_id):
+    def account(account_id, *, require_loaded=True):
         entry = hass.config_entries.async_get_entry(account_id)
         if (
             entry is None
             or entry.domain != DOMAIN
-            or entry not in (hass.config_entries.async_loaded_entries(DOMAIN))
+            or (require_loaded and entry not in hass.config_entries.async_loaded_entries(DOMAIN))
         ):
             raise ServiceValidationError("Wybierz załadowane konto Medi Assistant.")
         return entry
@@ -119,6 +121,39 @@ def async_setup_search_services(hass):
             }
 
     id_field = vol.All(vol.Coerce(int), vol.Range(min=1))
+
+    async def delete_search(call):
+        entry = account(call.data["account_id"], require_loaded=False)
+        async with locks.setdefault(entry.entry_id, asyncio.Lock()):
+            account(entry.entry_id, require_loaded=False)
+            search = entry.subentries.get(call.data["search_id"])
+            if search is None:
+                return {"success": True, "deleted": False}
+            if search.subentry_type != SUBENTRY_TYPE_SEARCH:
+                raise ServiceValidationError("Wybierz szukajkę Medi Assistant.")
+            # Clear persisted notification state before removing the subentry.
+            if entry in hass.config_entries.async_loaded_entries(DOMAIN):
+                store = entry.runtime_data.filters_store
+            else:
+                store = FiltersStore(hass, entry.entry_id)
+                await store.async_load()
+            await store.async_clear_subentry_state(search.subentry_id)
+            hass.config_entries.async_remove_subentry(entry, search.subentry_id)
+            return {"success": True, "deleted": True}
+
+    async_register_admin_service(
+        hass,
+        DOMAIN,
+        "delete_search",
+        delete_search,
+        schema=vol.Schema(
+            {
+                vol.Required("account_id"): cv.string,
+                vol.Required("search_id"): cv.string,
+            }
+        ),
+        supports_response=SupportsResponse.ONLY,
+    )
     hass.services.async_register(
         DOMAIN,
         "get_search_filters",

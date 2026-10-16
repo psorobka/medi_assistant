@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.3.0 — 2026-10-16
+
+### Added
+
+- Administrator-only Delete search button on the appointments card, with account/search confirmation and list refresh after deletion.
+- Account-scoped delete_search action clears persisted notification state and removes the native search subentry without cancelling booked appointments.
+
+
 ## 1.2.0 — 2026-10-16
 
 ### Added

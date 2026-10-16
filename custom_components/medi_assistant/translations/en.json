@@ -224,6 +224,20 @@
           "description": "List of notify targets, as in the search configuration form."
         }
       }
+    },
+    "delete_search": {
+      "name": "Delete search",
+      "description": "Deletes a saved search and its notification state. Booked appointments are unchanged. Requires an administrator.",
+      "fields": {
+        "account_id": {
+          "name": "Account",
+          "description": "Account ID returned by get_search_filters or list_booking_offers."
+        },
+        "search_id": {
+          "name": "Search",
+          "description": "Search ID returned by list_booking_offers or create_search."
+        }
+      }
     }
   }
 }

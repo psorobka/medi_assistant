@@ -224,6 +224,20 @@
           "description": "Lista celów notify, taka jak w formularzu szukajki."
         }
       }
+    },
+    "delete_search": {
+      "name": "Usuń szukajkę",
+      "description": "Usuwa szukajkę i stan powiadomień. Nie odwołuje wizyt. Wymaga administratora.",
+      "fields": {
+        "account_id": {
+          "name": "Konto",
+          "description": "Identyfikator konta z get_search_filters lub list_booking_offers."
+        },
+        "search_id": {
+          "name": "Szukajka",
+          "description": "Identyfikator szukajki z list_booking_offers lub create_search."
+        }
+      }
     }
   }
 }
