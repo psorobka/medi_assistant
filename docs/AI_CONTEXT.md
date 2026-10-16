@@ -1,8 +1,8 @@
 # Aktywne repozytorium
 
 Kod źródłowy: `custom_components/medi_assistant/`. Domena: `medi_assistant`.
-Wydanie: 1.3.0. Wersja manifestu, pyproject i cache modułu karty jest kontrolowana przez tests/test_release.py. Procedura PR → zielone CI → merge → tag/release jest w AGENTS.md; historia wydań w CHANGELOG.md.
-Testy przeglądarkowe: `playwright.config.mjs`, `tests/browser/`, opis w `docs/BROWSER_TESTS.md`; `pnpm test:browser`. Kod produktu ma wersję 1.3.0; zmiany samych testów nie wymagają wydania.
+Wydanie: 1.3.1. Wersja manifestu, pyproject i cache modułu karty jest kontrolowana przez tests/test_release.py. Procedura PR → zielone CI → merge → tag/release jest w AGENTS.md; historia wydań w CHANGELOG.md.
+Testy przeglądarkowe: `playwright.config.mjs`, `tests/browser/`, opis w `docs/BROWSER_TESTS.md`; `pnpm test:browser`. Kod produktu ma wersję 1.3.1; zmiany samych testów nie wymagają wydania.
 
 Kopia `C:/Users/Piotr/Claude/Projects/medi_assistant` z domeną `medicover`
 to odrębny, stary prototyp. Nie montuj jej w lokalnym HA ani nie przenoś
@@ -51,3 +51,5 @@ Lokalny dashboard Moje wizyty: http://localhost:8123/medi-assistant/wizyty. Utwo
 - `search_services.py` / `search_config.py`: `get_search_filters` i `create_search`; wspólny zapis danych z config flow, walidacja filtrów i dat, blokada duplikatów per konto. Testy `test_search_services.py`; kontrakt w `docs/BOOKING.md`.
 
 - Usuwanie szukajki z karty: delete_search (administrator, account_id + search_id), potwierdzenie nazwy/konta, usunięcie stanu powiadomień i subentry bez odwoływania wizyt. Testy Python, DOM i Chromium obejmują uprawnienia, błąd, utratę odpowiedzi i izolację kont.
+
+- `brand/icon.png` i `brand/icon@2x.png`: oryginalna ikona kalendarza z plusem i potwierdzeniem, PNG RGBA 256/512. Lokalne brand images obsługuje HA 2026.3+; testowy HA 2025.12.4 nie wyświetla ich automatycznie. Podgląd w README.

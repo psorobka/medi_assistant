@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.3.1 — 2026-10-16
+
+### Added
+
+- Original Medi Assistant calendar/medical icon with transparent background, bundled as 256 px and 512 px local brand images for Home Assistant 2026.3+.
+- README icon preview and compatibility note; older supported HA versions retain their existing behavior.
+
+
 ## 1.3.0 — 2026-10-16
 
 ### Added
