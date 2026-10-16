@@ -178,7 +178,9 @@ export class MediAssistantAppointments extends HTMLElement {
     this._selected = { mode: "delete", account, search };
     this._notice = null;
     this._render();
-    this.shadowRoot.querySelector(".confirmation")?.focus();
+    const panel = this.shadowRoot.querySelector(".confirmation");
+    panel?.focus({ preventScroll: true });
+    panel?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
   }
 
   async _deleteSelected() {
@@ -297,6 +299,7 @@ export class MediAssistantAppointments extends HTMLElement {
       error.setAttribute("role", "alert");
       body.append(error);
     }
+    let deleteConfirmation;
     if (this._selected) {
       const { account, appointment, search } = this._selected;
       const booking = this._selected.mode === "book";
@@ -333,7 +336,8 @@ export class MediAssistantAppointments extends HTMLElement {
       const backLabel = deleting ? t.keepSearch : (booking ? t.backBook : t.back);
       actions.append(this._button(backLabel, "", () => { this._selected = null; this._render(); }, this._busy), confirm);
       panel.append(actions);
-      body.append(panel);
+      if (deleting) deleteConfirmation = panel;
+      else body.append(panel);
     }
     if (!this._loaded && !this._loadError) body.append(this._node("div", "empty", t.loading));
     if (this._loaded && !this._accounts.length) body.append(this._node("div", "empty", t.noAccounts));
@@ -382,6 +386,10 @@ export class MediAssistantAppointments extends HTMLElement {
           details.open ? this._closedSearches.delete(key) : this._closedSearches.add(key);
         });
         details.append(this._node("summary", "", search.name));
+        if (deleteConfirmation && this._selected.account.account_id === account.account_id && this._selected.search.search_id === search.search_id) {
+          details.open = true;
+          details.append(deleteConfirmation);
+        }
         if (this._hass?.user?.is_admin === true) {
           const actions = this._node("div", "actions");
           actions.append(this._button(t.deleteSearch, "danger delete-search", () => this._selectDelete(account, search), this._busy || this._loading || !!this._selected || this._searchError));

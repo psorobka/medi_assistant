@@ -1,3 +1,5 @@
+<img src="custom_components/medi_assistant/brand/icon.png" width="96" height="96" alt="Ikona Medi Assistant: kalendarz z symbolem medycznym i potwierdzeniem wizyty">
+
 # Medi Assistant — wizyty Medicover w Home Assistant
 
 [![CI](https://github.com/psorobka/medi_assistant/actions/workflows/ci.yml/badge.svg)](https://github.com/psorobka/medi_assistant/actions/workflows/ci.yml)
@@ -23,6 +25,11 @@ kont i wiele zapisanych wyszukiwań — **szukajek** — na każdym koncie.
 [Karta Moje wizyty](#karta-moje-wizyty) · [Akcje HA](#akcje-ha-serwisy) ·
 [Chatbot](#tworzenie-szukajki-przez-chatbota-lub-automatyzację) ·
 [Rozwiązywanie problemów](#rozwiązywanie-problemów)
+
+Ikona integracji jest dołączona w rozmiarach 256 i 512 px, z przezroczystym tłem.
+Automatyczne wyświetlanie lokalnych ikon integracji wymaga **HA 2026.3 lub nowszego**;
+starsze wersje HA nadal mogą korzystać z integracji.
+[Obsługa ikon w HA](https://developers.home-assistant.io/blog/2026/02/24/brands-proxy-api/).
 
 ## Instalacja
 

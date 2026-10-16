@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.3.1 — 2026-10-16
+
+### Fixed
+
+- Keep search deletion confirmation next to the selected search and scroll it into view. On long dashboard cards the confirmation could previously appear far above the clicked button, leaving other actions disabled while waiting for an unseen confirmation.
+
+### Added
+
+- Original Medi Assistant calendar/medical icon with transparent background, bundled as 256 px and 512 px local brand images for Home Assistant 2026.3+.
+- README icon preview and compatibility note; older supported HA versions retain their existing behavior.
+
+
 ## 1.3.0 — 2026-10-16
 
 ### Added
