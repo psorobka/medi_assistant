@@ -273,6 +273,50 @@ Przed udostępnieniem logów sprawdź, czy nie zawierają danych osobowych.
 
 ## Rozwój i testy
 
+### Lokalny Home Assistant w Dockerze
+
+Do ręcznego sprawdzania konfiguracji, sensorów, karty i akcji możesz uruchomić
+osobną instancję HA z kodem z tego repozytorium. Wymagane są działający Docker
+(na Windows: Docker Desktop z kontenerami Linux) i PowerShell.
+W katalogu projektu uruchom:
+
+```powershell
+./scripts/start-local-ha.ps1
+```
+
+Skrypt uruchamia kontener `medicover-ha-local` z **HA 2025.12.4** i udostępnia
+go pod [http://localhost:8123](http://localhost:8123). Przygotowuje lokalnego
+użytkownika i dostęp przez zaufaną sieć; port jest przypisany wyłącznie do
+tego komputera. Przy pierwszym uruchomieniu Docker pobierze obraz HA.
+
+Kod `custom_components` jest montowany bezpośrednio z repozytorium, więc nie
+trzeba kopiować integracji po każdej zmianie. Dodaj konto przez interfejs HA,
+utwórz szukajkę i dodaj kartę do dashboardu. Po zmianach Pythona zrestartuj HA;
+po zmianach karty odśwież również stronę przeglądarki.
+
+```powershell
+# Wczytanie zmian Pythona
+docker restart medicover-ha-local
+
+# Podgląd logów na żywo; Ctrl+C kończy podgląd
+docker logs --follow --tail 100 medicover-ha-local
+
+# Zatrzymanie środowiska
+docker stop medicover-ha-local
+```
+
+Ponowne wywołanie skryptu uruchamia istniejący kontener. Konfiguracja, sesje
+i logi pozostają w ignorowanym katalogu `.local-ha/config`; skrypt sprawdza,
+czy istniejący kontener korzysta z właściwej kopii projektu. Nie kopiuj do niego
+konfiguracji ani plików `.storage` z produkcyjnego HA i nie commituj lokalnych danych.
+
+To działający HA: po podłączeniu konta komunikuje się z prawdziwym Medicover,
+a rezerwacje i odwołania mają rzeczywisty skutek. Do automatycznych testów używaj
+opisanych poniżej testów z danymi syntetycznymi. Zależności pytest instaluj
+w osobnym środowisku, poza kontenerem interaktywnego HA.
+
+### Testy automatyczne
+
 Backend testowany jest na Pythonie **3.13**, z zależnościami z
 `requirements_test.txt` i `requirements_dev.txt`. W izolowanym środowisku:
 
