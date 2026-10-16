@@ -308,7 +308,8 @@ formularze konfiguracji sprawdzają testy backendu.
 Logika komunikacji i logowania (PKCE, MFA, odświeżanie tokenów i wyszukiwanie
 wizyt) została przeniesiona do wersji asynchronicznej na podstawie projektu
 [medichaser](https://github.com/rafsaf/medichaser) autorstwa rafsaf.
-Projekt rozwijany z pomocą [Claude Code](https://claude.com/claude-code) (Anthropic).
+Projekt rozwijany z pomocą [Claude Code](https://claude.com/claude-code) (Anthropic)
+oraz [Codex](https://openai.com/codex/) (OpenAI).
 
 Licencja **GNU General Public License v3.0** — zobacz [LICENSE](LICENSE).
 Projekt dziedziczy licencję GPL-3.0 po wykorzystanej logice medichaser.
