@@ -1,226 +1,376 @@
-# Medi Assistant — Medicover appointments for Home Assistant
+# Medi Assistant — wizyty Medicover w Home Assistant
 
 [![CI](https://github.com/psorobka/medi_assistant/actions/workflows/ci.yml/badge.svg)](https://github.com/psorobka/medi_assistant/actions/workflows/ci.yml)
-[![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
+[![HACS](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
 
-A Home Assistant custom integration that polls the unofficial Medicover **online24**
-API for free appointment slots and exposes each saved search as a sensor you can
-build automations and notifications on.
+Integracja z Medicover online24 do wyszukiwania terminów, powiadamiania o nowych
+wizytach oraz ich rezerwowania i odwoływania z Home Assistant. Obsługuje wiele
+kont i wiele zapisanych wyszukiwań — **szukajek** — na każdym koncie.
 
-> ⚠️ **Unofficial integration.** It talks to Medicover's private `online24` API
-> (the same one the website/app uses). It is not affiliated with or endorsed by
-> Medicover and may break if they change their API. Use at your own risk.
+> To nieoficjalna integracja, niezwiązana z Medicover. Korzysta z niepublicznego
+> API online24, którego zmiany mogą wpłynąć na jej działanie.
 
----
+## Co możesz zrobić
 
-## Features
+- Zapisać szukajkę: region → specjalizacja → opcjonalnie placówka, lekarz, język i daty.
+- Otrzymywać powiadomienia o nowych terminach na jednym lub kilku urządzeniach.
+- Przeglądać szukajki, dostępne terminy i zaplanowane wizyty na jednej karcie.
+- Rezerwować konkretny termin i odwoływać wizyty z potwierdzeniem na karcie.
+- Tworzyć szukajki oraz obsługiwać wizyty przez akcje HA, automatyzacje lub chatbota.
+- Wykorzystywać sensor każdej szukajki we własnych dashboardach i automatyzacjach.
 
-- 🔐 **Login like the app** — e‑mail + password + MFA (SMS *or* e‑mail code) handled in the config flow.
-- 👨‍👩‍👧 **Multiple accounts** — one config entry per patient (named after the patient).
-- 🔎 **Multiple searches per account** — each search ("szukajka") = one sensor.
-- 🧭 **Region‑first wizard** — region → specialty (scoped to the region) → optional clinic / doctor / visit language / date range / notifications.
-- 🔔 **Built‑in notifications (optional)** — pick one or more notify targets per search; you get a push when a **new** slot appears (deduplicated across restarts).
-- 📅 **Readable sensor** — state shows the soonest slot (`date · doctor · clinic`); attributes carry the full list, count and earliest date.
-- ♻️ **Self‑healing auth** — keeps the short‑lived token alive and silently re‑logs in after long downtime (no constant MFA prompts).
-- 🌍 **Polish & English** UI translations, dropdowns with human‑readable names (never raw IDs).
-- 🛠️ No YAML — everything via the UI. Config subentries, `DataUpdateCoordinator`, typed `runtime_data`, cached filter lists.
+**Na skróty:** [Instalacja](#instalacja) · [Konfiguracja](#konfiguracja) ·
+[Karta Moje wizyty](#karta-moje-wizyty) · [Akcje HA](#akcje-ha-serwisy) ·
+[Chatbot](#tworzenie-szukajki-przez-chatbota-lub-automatyzację) ·
+[Rozwiązywanie problemów](#rozwiązywanie-problemów)
 
-## Requirements
+## Instalacja
 
-- Home Assistant **2025.2.0+** (uses config subentries).
-- A Medicover account with online24 access.
+Wymagane są konto Medicover z dostępem do online24 i Home Assistant.
+Deklarowana minimalna wersja HA to **2025.2.0**; testy backendu korzystają
+z **HA 2025.12.4 / Python 3.13**.
 
-## Installation
+### Przez HACS
 
-### HACS (recommended)
+1. Otwórz **HACS → Integracje → ⋮ → Repozytoria niestandardowe**.
+2. Dodaj `https://github.com/psorobka/medi_assistant` jako **Integrację**.
+3. Zainstaluj **Medi Assistant** i uruchom ponownie Home Assistant.
 
-1. HACS → **Integrations** → ⋮ → **Custom repositories**.
-2. Add `https://github.com/psorobka/medi_assistant` with category **Integration**.
-3. Install **Medi Assistant**, then **restart Home Assistant**.
+### Ręcznie
 
-### Manual
+Skopiuj katalog `custom_components/medi_assistant` do
+`config/custom_components/` w HA i uruchom ponownie Home Assistant.
 
-Copy `custom_components/medi_assistant` into your HA `config/custom_components/`
-directory and restart Home Assistant.
+## Konfiguracja
 
-## Setup
+### Dodaj konto
 
-### Add an account
+Otwórz **Ustawienia → Urządzenia i usługi → Dodaj integrację → Medi Assistant**.
+Podaj e-mail i hasło, a następnie kod weryfikacyjny SMS lub e-mail, jeśli Medicover
+go wymaga. Nazwa konta zostanie ustawiona na podstawie danych pacjenta.
+Dla kolejnego konta ponownie dodaj integrację.
 
-**Settings → Devices & Services → Add Integration → Medi Assistant**
+Dane logowania są zapisywane w konfiguracji HA, aby umożliwić automatyczne
+odnowienie sesji. Szczegóły: [Logowanie i prywatność](#logowanie-i-prywatność).
 
-1. Enter your Medicover **e‑mail** and **password**.
-2. Enter the **verification code** Medicover sends (SMS or e‑mail, depending on
-   your account's MFA method).
+### Dodaj szukajkę
 
-The entry is named after the patient (fetched from `/personal-data`).
+W konfiguracji konta Medi Assistant wybierz dodanie szukajki i przejdź trzy kroki:
 
-> The password is stored in the config entry so the integration can silently
-> re‑authenticate after long downtime (see [Authentication & sessions](#authentication--sessions)).
-> If you'd rather not store it, you can still use the integration — you'll just be
-> asked to re‑authenticate occasionally.
+1. **Region** — domyślnie region ostatnio dodanej szukajki.
+2. **Specjalizacja** — lista dostępna dla wybranego regionu.
+3. **Szczegóły** — opcjonalnie placówka, lekarz, język wizyty, daty i cele powiadomień.
 
-### Add a search ("szukajka")
+Każda szukajka ma własny sensor. Można ją edytować i usuwać w konfiguracji
+integracji; zmiany nie wymagają restartu HA. Ustawienie powiadomień jest opcjonalne.
+Szukajki dodane przez akcję `create_search` działają i są edytowane tak samo.
 
-On the integration card: **Add szukajkę**, then a 3‑step wizard:
+### Częstotliwość wyszukiwania
 
-1. **Region** (defaults to the region of your last search).
-2. **Specialty** — the list is loaded **for the chosen region** (Medicover's
-   global list is incomplete, so it's fetched per region).
-3. **Details (all optional):** clinic, doctor, visit language, "search from"/"until"
-   dates, and **notification target(s)**.
+W opcjach konta wybierz **Konfiguruj → Interwał sprawdzania**: od 5 do 120 minut,
+domyślnie **10 minut**. Zmiana interwału przeładowuje dane konto.
+Przycisk **Odśwież dane Medicover** pobiera ponownie listy filtrów i nazwę pacjenta.
 
-Each search becomes a sensor and can be edited or deleted at any time —
-sensors are created/removed instantly, without reloading the integration.
+## Karta „Moje wizyty”
 
-## The sensor
+Karta **Medi Assistant — Moje wizyty** łączy dane wszystkich kont w jednym widoku.
+Po instalacji i restarcie HA otwórz edycję dashboardu, wybierz **Dodaj kartę**
+i znajdź ją na liście. Jej moduł ładuje się automatycznie — bez osobnej instalacji
+karty w HACS ani ręcznego dodawania zasobu JavaScript.
 
-- **State** — soonest available slot, e.g. `2026-07-01 10:00 · dr Jan Nowak · Klinika Centrum`, or `Brak terminów` ("no slots") when empty.
-- **Attributes:**
-  - `count` — total number of free slots matching the search.
-  - `earliest` — ISO datetime of the soonest slot.
-  - `appointments` — list of up to 20 soonest slots (`date`, `clinic`, `doctor`, `specialty`, `languages`).
-  - `appointments_truncated` — `true` if more than 20 slots matched.
-  - `search` — the saved search parameters.
+Możesz też dodać kartę przez YAML:
 
-### Example automation
+```yaml
+type: custom:medi-assistant-appointments
+```
+
+Karta zawiera dwie części:
+
+| Część | Zawartość i działania |
+| --- | --- |
+| Zaplanowane wizyty | Wizyty wszystkich kont, również zarezerwowane poza integracją. Data, godzina, lekarz, specjalność i placówka oraz przycisk **Odwołaj**. Działa także dla kont bez szukajek. |
+| Szukajki | Wyszukiwania pogrupowane według konta, liczba wyników i do 20 najbliższych terminów na szukajkę. Przycisk **Zarezerwuj** przy konkretnym terminie. Listy można zwijać. |
+
+Rezerwacja i odwołanie wymagają potwierdzenia z danymi wybranej wizyty.
+Późne odwołanie wymaga dodatkowej zgody. Po operacji karta odświeża listy;
+nie ponawia automatycznie operacji o nieznanym wyniku.
+
+**Odśwież** pobiera aktualne wyniki. Automatyczne odświeżanie karty co 5 minut
+odczytuje ostatnie wyniki wyszukiwania integracji — nie zastępuje interwału
+sprawdzania konta. Niedostępne dane są odróżnione od braku terminów.
+
+Przycisk **Dodaj szukajkę** otwiera natywną konfigurację integracji HA.
+Jest widoczny administratorom, również gdy nie ma jeszcze szukajek.
+
+## Akcje HA (serwisy)
+
+Akcje znajdziesz w **Narzędzia deweloperskie → Akcje**. Możesz też wywoływać je
+ze skryptów i automatyzacji. Wszystkie zwracają odpowiedź; w skrypcie odbierz ją
+przez `response_variable`. Pełne nazwy mają prefiks **`medi_assistant.`**.
+
+| Akcja | Parametry | Wynik |
+| --- | --- | --- |
+| `get_search_filters` | Opcjonalnie `account_id`, następnie `region_id` i `specialty_id` | Bez parametrów: załadowane konta. Po wyborze konta: regiony; po wyborze regionu: specjalizacje; po wyborze specjalizacji: placówki i lekarze. Także lista języków. |
+| `create_search` | Wymagane `account_id`, `region_id`, `specialty_id`; opcjonalne filtry poniżej | Tworzy standardową szukajkę. Zwraca m.in. `search_id`, `title`, `data` i `created`. Identyczne ponowienie na tym samym koncie zwraca istniejącą szukajkę z `created: false`. |
+| `list_booking_offers` | Opcjonalnie `entity_id`; bez niego można podać `refresh: true` | Szukajki wszystkich kont i do 20 najbliższych terminów na szukajkę. Z `entity_id`: terminy jednej szukajki. Każdy termin do rezerwacji zawiera `booking_id`. |
+| `book_appointment` | Wymagane `booking_id` | Rezerwuje wskazany termin i zwraca `success`, `status`, `message`. |
+| `list_booked_appointments` | Opcjonalnie `entity_id` szukajki | Zaplanowane wizyty wszystkich kont albo konta wskazanej szukajki. Wizyty zawierają `cancellation_id` do odwołania. |
+| `cancel_appointment` | Wymagane `cancellation_id`; opcjonalnie `confirm_late_cancellation: true` | Odwołuje wskazaną wizytę i zwraca `success`, `status`, `message`. Zgoda jest wymagana przy późnym odwołaniu. |
+
+**Rezerwacja i odwołanie wykonują rzeczywistą operację na koncie Medicover.**
+Samo pobieranie filtrów, tworzenie szukajki i wyświetlanie list nie rezerwuje wizyty.
+
+### Tworzenie szukajki przez chatbota lub automatyzację
+
+Konto najpierw dodaj przez interfejs HA. Następnie pobierz dostępne identyfikatory
+z `get_search_filters` — chatbot powinien używać wartości z odpowiedzi:
+
+1. Bez parametrów: wybierz `account_id` z listy `accounts`.
+2. Z `account_id`: wybierz `region_id` z `regions`.
+3. Z `account_id` i `region_id`: wybierz `specialty_id` z `specialties`.
+4. Dodaj `specialty_id`, jeśli chcesz poznać dostępne `clinics` i `doctors`.
+
+Listy filtrów zawierają elementy `{id, value}`. Przykład pierwszego wywołania
+jako kroku skryptu HA:
+
+```yaml
+action: medi_assistant.get_search_filters
+data: {}
+response_variable: filters
+```
+
+Po wyborze parametrów utwórz szukajkę:
+
+```yaml
+action: medi_assistant.create_search
+data:
+  account_id: "IDENTYFIKATOR_KONTA_Z_ODPOWIEDZI"
+  region_id: 204
+  specialty_id: 9
+  date_from: "2026-11-01"
+  date_to: "2026-11-30"
+response_variable: search
+```
+
+Identyfikatory i daty są przykładowe. Opcjonalne parametry to `clinic_id`,
+`doctor_id`, `language_id`, `date_from`, `date_to` i `notify_target`
+(lista, np. `["notify.mobile_app_telefon"]`). Nieprawidłowe filtry i odwrócony
+zakres dat są odrzucane. Nie trzeba ustawiać dat ani powiadomień.
+
+Nowa szukajka pojawi się w konfiguracji HA i na karcie. Wyniki otrzyma przy
+odświeżeniu integracji. Możesz też od razu poprosić o nowe wyniki wszystkich szukajek:
+
+```yaml
+action: medi_assistant.list_booking_offers
+data:
+  refresh: true
+response_variable: offers
+```
+
+Akcje są podstawą do podłączenia chatbota. Po jego stronie trzeba udostępnić
+narzędzia wywołujące akcje HA i odbierające ich odpowiedzi; samo zainstalowanie
+integracji nie dodaje ich automatycznie do modelu. Przy REST API HA użyj
+`POST /api/services/medi_assistant/<nazwa_akcji>?return_response`
+z uwierzytelnieniem HA i parametrami w JSON.
+
+### Rezerwacja i odwołanie
+
+Do `book_appointment` przekaż `booking_id` wybranego terminu z
+`list_booking_offers`. Do `cancel_appointment` przekaż `cancellation_id`
+z aktualnej odpowiedzi `list_booked_appointments`.
+
+Te identyfikatory są ważne **30 minut**, do restartu HA lub przeładowania
+integracji. Przed operacją ponownie sprawdzana jest konkretna wizyta.
+Rezerwacja wymagająca płatności, dodatkowych zgód lub nadrezerwacji jest
+zatrzymywana przed zapisem. Po statusie `unknown` sprawdź listę wizyt przed
+kolejną próbą — zapis nie jest automatycznie ponawiany.
+
+Szczegółowy opis odpowiedzi i ograniczeń: [Obsługa wizyt i szukajek](docs/BOOKING.md).
+
+## Powiadomienia
+
+W szczegółach szukajki wybierz jeden lub kilka celów powiadomień. Formularz
+pokazuje usługi `notify.*`; inny obsługiwany cel, w tym encję powiadomień,
+możesz wpisać ręcznie.
+
+- Nowy termin jest zgłaszany przy pierwszym wykryciu, również po dodaniu szukajki.
+- Zapamiętane terminy są przechowywane na dysku, więc restart nie wysyła ich ponownie.
+- Telefon (`notify.mobile_app_…`) otrzymuje osobne powiadomienie dla każdego
+  z maksymalnie **3 najbliższych nowych terminów na szukajkę podczas jednego sprawdzenia**.
+  Pozostałe terminy są zgłaszane zbiorczo, bez przycisku rezerwacji.
+- Inne cele powiadomień otrzymują listę do 15 nowych terminów i liczbę pozostałych.
+- Usługa telefonu `notify.mobile_app_…` umożliwia przyciski **Zarezerwuj**,
+  **Wycisz szukajkę (24h)** i **Usuń szukajkę**. Rezerwacja dotyczy jednego terminu
+  pokazanego w tej wiadomości i następuje po kliknięciu, bez dodatkowego formularza
+  potwierdzenia. Wyciszenie i usunięcie dotyczą całej szukajki.
+- Encje powiadomień i `notify.persistent_notification` otrzymują zwykłą wiadomość,
+  bez przycisków. Ten ostatni cel pozwala wyświetlać wiadomości w panelu HA.
+
+### Widok otwierany po kliknięciu powiadomienia
+
+W opcjach konta (**Konfiguruj**) ustaw **Widok otwierany z powiadomienia**,
+np. `/dashboard-zdrowie/medicover`. Skopiuj ścieżkę z adresu własnego dashboardu
+z kartą Medi Assistant, bez nazwy serwera. Kliknięcie treści powiadomienia
+mobilnego otworzy ten widok w aplikacji HA na Androidzie lub iOS; przycisk
+**Zarezerwuj** nadal wykona rezerwację wskazanego terminu.
+
+Ustawienie dotyczy wszystkich szukajek konta, także powiadomień zbiorczych
+i wyników rezerwacji. Puste pole pozostawia domyślny widok aplikacji.
+Zapis ścieżki nie wymaga restartu. Ścieżka wskazuje istniejący widok — nie tworzy go.
+
+## Sensor i własne automatyzacje
+
+Stan sensora pokazuje najbliższy termin (`data · lekarz · placówka`) albo
+`Brak terminów`. Atrybuty umożliwiają własne prezentacje i automatyzacje:
+
+| Atrybut | Znaczenie |
+| --- | --- |
+| `count` | Liczba wszystkich terminów pasujących do szukajki. |
+| `earliest` | Data i godzina najbliższego terminu w formacie ISO. |
+| `appointments` | Do 20 najbliższych terminów z danymi wizyty i `booking_id`. |
+| `appointments_truncated` | `true`, gdy wyników jest więcej niż 20. |
+| `search` | Zapisane parametry szukajki. |
+
+Przykład automatyzacji — zastąp identyfikatory sensora i telefonu własnymi:
 
 ```yaml
 automation:
-  - alias: "Medicover — cardiologist slot found"
-    trigger:
-      - platform: numeric_state
-        entity_id: sensor.your_search   # find the exact id in Developer Tools → States
+  - alias: "Medicover — znaleziono termin"
+    triggers:
+      - trigger: numeric_state
+        entity_id: sensor.twoja_szukajka
         attribute: count
         above: 0
-    action:
-      - service: notify.mobile_app_your_phone
+    actions:
+      - action: notify.mobile_app_twoj_telefon
         data:
-          title: "Free Medicover slot"
-          message: "{{ states('sensor.your_search') }}"
+          title: "Dostępny termin Medicover"
+          message: "{{ states('sensor.twoja_szukajka') }}"
 ```
 
-> You don't need this if you set a notification target on the search — the
-> integration sends it for you.
+Ta automatyzacja reaguje na wzrost liczby terminów z zera do wartości dodatniej.
+Wbudowane powiadomienia szukajki zgłaszają także nowe terminy, gdy inne nadal są dostępne.
 
-## Notifications
+## Logowanie i prywatność
 
-In a search's **Details** step, set one or more **notification targets**. The
-dropdown lists both modern `notify.*` **entities** (e.g. `notify.mobile_app_*`)
-and legacy `notify.*` **services** (telegram, pushbullet, `notify.persistent_notification`, …);
-you can also type a target manually.
+Integracja podtrzymuje krótką sesję Medicover i próbuje automatycznie zalogować
+się ponownie przy odrzuconym odświeżeniu tokena. Jeśli automatyczne odnowienie
+się nie powiedzie, HA poprosi o ponowne uwierzytelnienie.
 
-Behavior:
+Hasło, tokeny i ciasteczka sesji są przechowywane w konfiguracji Home Assistant.
+Eksport diagnostyczny usuwa z nich dane uwierzytelniające. Połączenia z usługą
+Medicover korzystają z jej API. Podłączenie zewnętrznego chatbota oznacza osobną
+decyzję o tym, które odpowiedzi — w tym dane wizyt — mu przekazujesz.
 
-- A slot is announced **once, on first detection** (including right after you add
-  a search when something is already free).
-- Already‑announced slots are remembered **on disk**, so HA restarts don't
-  re‑spam you.
-- The message lists the new slots (`date · doctor · clinic`, capped at 15 with an
-  "…and N more" line). Title is `Patient — search`.
+Lista zaplanowanych wizyt w karcie jest pobierana przez akcję, bez zapisywania
+jej w osobnych encjach i historii HA. Szukajki mają sensory i ich atrybuty,
+które mogą być zapisywane przez standardowy recorder HA.
 
-> `notify.persistent_notification` is the easiest target to test with — it shows
-> up in HA's notifications bell, no mobile app needed.
+## Rozwiązywanie problemów
 
-## Options
+| Problem | Co sprawdzić |
+| --- | --- |
+| HA wymaga ponownego logowania | Otwórz powiadomienie i zaloguj się ponownie, podając kod, jeśli jest wymagany. |
+| Brakuje specjalizacji lub placówki | Filtry zależą od regionu i konta. Sprawdź wybrany region i użyj przycisku **Odśwież dane Medicover**. |
+| Nie ma powiadomienia po dodaniu szukajki | Poczekaj na sprawdzenie terminów i zweryfikuj cel powiadomień. Pierwsze wykrycie dostępnego terminu powinno wysłać wiadomość. |
+| Karty nie ma na liście lub po aktualizacji wygląda jak wcześniej | Uruchom ponownie HA po instalacji i odśwież stronę przeglądarki, aby załadować moduł karty. |
+| Termin wygasł lub wynik operacji jest nieznany | Odśwież listy. Przy nieznanym wyniku sprawdź zaplanowane wizyty przed następną próbą. |
 
-Integration **Configure** → **Scan interval** (5–120 min, default **10**). Changing
-it reloads the entry.
+Aby włączyć logowanie diagnostyczne:
 
-## Refresh button
+```yaml
+logger:
+  logs:
+    custom_components.medi_assistant: debug
+```
 
-Each account has a **Refresh Medicover data** button that re‑fetches the filter
-lists (regions/specialties) and the patient name on demand.
+Przed udostępnieniem logów sprawdź, czy nie zawierają danych osobowych.
 
-## Authentication & sessions
+## Rozwój i testy
 
-Medicover's web tokens are short‑lived (access token ~3 min, refresh token with a
-small sliding window). The integration:
+### Lokalny Home Assistant w Dockerze
 
-- runs a **keep‑alive** that refreshes the token shortly before it expires,
-- on a rejected refresh, performs a **silent re‑login** with the stored
-  credentials (the device is trusted after the first MFA, so no new code is
-  needed),
-- persists the login session cookies so refresh works after a restart,
-- **retries the silent re‑login a few times** (with backoff) on a transient
-  failure before falling back to an interactive re‑authentication prompt — a
-  single hiccup no longer triggers a reauth notification.
+Do ręcznego sprawdzania konfiguracji, sensorów, karty i akcji możesz uruchomić
+osobną instancję HA z kodem z tego repozytorium. Wymagane są działający Docker
+(na Windows: Docker Desktop z kontenerami Linux) i PowerShell.
+W katalogu projektu uruchom:
 
-You'll only be asked to re‑authenticate (with a fresh MFA code) if the password
-changes or Medicover revokes the device's trust.
+```powershell
+./scripts/start-local-ha.ps1
+```
 
-## Troubleshooting
+Skrypt uruchamia kontener `medicover-ha-local` z **HA 2025.12.4** i udostępnia
+go pod [http://localhost:8123](http://localhost:8123). Przygotowuje lokalnego
+użytkownika i dostęp przez zaufaną sieć; port jest przypisany wyłącznie do
+tego komputera. Przy pierwszym uruchomieniu Docker pobierze obraz HA.
 
-- **"Re‑authentication required" notification** — open it and sign in again
-  (e‑mail + password + verification code).
-- **A specialty/clinic is missing for a region** — the lists are region‑scoped;
-  if it's not offered in that region it won't appear. Use the **Refresh Medicover
-  data** button if lists look stale.
-- **No notification right after adding a search** — you only get notified about
-  **new** slots; the very first detection counts, so if there were already free
-  slots you should get one on the next poll.
-- **Enable debug logs:**
-  ```yaml
-  logger:
-    logs:
-      custom_components.medi_assistant: debug
-  ```
+Kod `custom_components` jest montowany bezpośrednio z repozytorium, więc nie
+trzeba kopiować integracji po każdej zmianie. Dodaj konto przez interfejs HA,
+utwórz szukajkę i dodaj kartę do dashboardu. Po zmianach Pythona zrestartuj HA;
+po zmianach karty odśwież również stronę przeglądarki.
 
-## Privacy & security
+```powershell
+# Wczytanie zmian Pythona
+docker restart medicover-ha-local
 
-Credentials, OAuth tokens and login session cookies are stored in the Home
-Assistant config entry (standard for integrations that log in on your behalf).
-Diagnostics downloads redact tokens, password and cookies. Nothing is sent
-anywhere except Medicover's own API.
+# Podgląd logów na żywo; Ctrl+C kończy podgląd
+docker logs --follow --tail 100 medicover-ha-local
 
-## Development
+# Zatrzymanie środowiska
+docker stop medicover-ha-local
+```
 
-```bash
-python -m venv .venv && source .venv/bin/activate
+Ponowne wywołanie skryptu uruchamia istniejący kontener. Konfiguracja, sesje
+i logi pozostają w ignorowanym katalogu `.local-ha/config`; skrypt sprawdza,
+czy istniejący kontener korzysta z właściwej kopii projektu. Nie kopiuj do niego
+konfiguracji ani plików `.storage` z produkcyjnego HA i nie commituj lokalnych danych.
+
+To działający HA: po podłączeniu konta komunikuje się z prawdziwym Medicover,
+a rezerwacje i odwołania mają rzeczywisty skutek. Do automatycznych testów używaj
+opisanych poniżej testów z danymi syntetycznymi. Zależności pytest instaluj
+w osobnym środowisku, poza kontenerem interaktywnego HA.
+
+### Testy automatyczne
+
+Backend testowany jest na Pythonie **3.13**, z zależnościami z
+`requirements_test.txt` i `requirements_dev.txt`. W izolowanym środowisku:
+
+```sh
 pip install -r requirements_test.txt -r requirements_dev.txt
-pytest                 # test suite (loads the integration into a real hass)
-ruff check .           # lint
-ruff format .          # format
+pytest -q --cov --cov-report=term-missing --cov-fail-under=90
+ruff check .
+ruff format --check .
 ```
 
-Tests never hit the real API — the HTTP layer is mocked and fixtures live in
-`tests/fixtures/` (redacted).
+Testy karty wymagają Node.js **24** i pnpm **11.25.0**:
 
-**CI** (GitHub Actions, on every push / PR to `main`) runs four jobs: ruff lint +
-`ruff format --check`, the pytest suite, **hassfest** manifest validation and
-**HACS** validation. `ruff` is pinned in `requirements_dev.txt` so its version is
-identical locally and in CI. **Dependabot** opens weekly, grouped PRs to bump the
-GitHub Actions and the Python dev/test dependencies.
+```sh
+pnpm install --frozen-lockfile --ignore-scripts
+pnpm test:frontend
+pnpm exec playwright install chromium
+pnpm test:browser
+```
 
-## Credits
+CI dla PR i gałęzi `main` obejmuje sześć kontroli: Ruff, pytest z progiem
+pokrycia 90%, testy karty Node, Chromium na komputerze i telefonie, Hassfest i HACS.
+Testy automatyczne korzystają wyłącznie z danych syntetycznych i nie wywołują
+prawdziwego API Medicover. Chromium sprawdza kartę z fikcyjnymi usługami HA;
+formularze konfiguracji sprawdzają testy backendu.
 
-Network/login logic (PKCE, MFA, token refresh, the `search-appointments`
-endpoints) was ported to async from
-[`medichaser`](https://github.com/rafsaf/medichaser) by rafsaf — thanks!
+- [Testy przeglądarkowe — uruchomienie i zakres](docs/BROWSER_TESTS.md)
+- [Lokalne środowisko HA i szczegóły obsługi wizyt](docs/BOOKING.md)
+- [Historia zmian](CHANGELOG.md)
+- [Procedura pracy i wydań](AGENTS.md)
 
-Built with the help of [Claude Code](https://claude.com/claude-code) (Anthropic). 🤖
+## Autorzy i licencja
 
-## License
+Logika komunikacji i logowania (PKCE, MFA, odświeżanie tokenów i wyszukiwanie
+wizyt) została przeniesiona do wersji asynchronicznej na podstawie projektu
+[medichaser](https://github.com/rafsaf/medichaser) autorstwa rafsaf.
+Projekt rozwijany z pomocą [Claude Code](https://claude.com/claude-code) (Anthropic)
+oraz [Codex](https://openai.com/codex/) (OpenAI).
 
-Licensed under the **GNU General Public License v3.0** — see [LICENSE](LICENSE).
-Because the network/login logic is derived from
-[`medichaser`](https://github.com/rafsaf/medichaser) (GPL‑3.0), this project
-inherits the same license.
-
-## Disclaimer
-
-This project is not affiliated with Medicover. It uses an undocumented API that
-may change or break at any time. No warranty of any kind.
-
-## Rezerwacja wizyt
-
-Przycisk **Zarezerwuj** w powiadomieniu telefonu rezerwuje pierwszy wskazany termin.
-Aby wybrać i zarezerwować termin przez akcje HA, użyj `medi_assistant.list_booking_offers` i
-`medi_assistant.book_appointment`. [Instrukcja, ograniczenia i lokalny HA](docs/BOOKING.md).
-
-Zarezerwowane wizyty pokaże `medi_assistant.list_booked_appointments`.
-Wybraną wizytę odwołasz akcją `medi_assistant.cancel_appointment`, podając jej `cancellation_id`.
-
-Karta **Medi Assistant — Moje wizyty** pokazuje rezerwacje wszystkich kont oraz szukajki i znalezione terminy. Pozwala rezerwować i odwoływać wizyty z potwierdzeniem. Po restarcie HA dodaj ją z listy kart dashboardu. [Instrukcja](docs/BOOKING.md#karta-moje-wizyty).
-
-Automated Chromium card tests (desktop and phone): `pnpm test:browser`. [Setup, coverage and isolation](docs/BROWSER_TESTS.md).
+Licencja **GNU General Public License v3.0** — zobacz [LICENSE](LICENSE).
+Projekt dziedziczy licencję GPL-3.0 po wykorzystanej logice medichaser.
+Integracja jest udostępniana bez gwarancji; nie jest afiliowana ani zatwierdzona
+przez Medicover.

@@ -1,8 +1,8 @@
 # Aktywne repozytorium
 
 Kod źródłowy: `custom_components/medi_assistant/`. Domena: `medi_assistant`.
-Wydanie: 1.1.0. Wersja manifestu, pyproject i cache modułu karty jest kontrolowana przez tests/test_release.py. Procedura PR → zielone CI → merge → tag/release jest w AGENTS.md; historia wydań w CHANGELOG.md.
-Testy przeglądarkowe: `playwright.config.mjs`, `tests/browser/`, opis w `docs/BROWSER_TESTS.md`; `pnpm test:browser`. Kod produktu pozostaje w wersji 1.1.0; zmiany samych testów nie wymagają wydania.
+Wydanie: 1.2.0. Wersja manifestu, pyproject i cache modułu karty jest kontrolowana przez tests/test_release.py. Procedura PR → zielone CI → merge → tag/release jest w AGENTS.md; historia wydań w CHANGELOG.md.
+Testy przeglądarkowe: `playwright.config.mjs`, `tests/browser/`, opis w `docs/BROWSER_TESTS.md`; `pnpm test:browser`. Kod produktu ma wersję 1.2.0; zmiany samych testów nie wymagają wydania.
 
 Kopia `C:/Users/Piotr/Claude/Projects/medi_assistant` z domeną `medicover`
 to odrębny, stary prototyp. Nie montuj jej w lokalnym HA ani nie przenoś
@@ -17,7 +17,7 @@ podtrzymanie sesji, edytowalne szukajki i opcjonalne powiadomienia.
 - `api.py`: `async_check_booking` (cena i dodatkowe potwierdzenia),
   `async_book_appointment` (POST v2); istniejący auth i wspólna sesja API.
 - `coordinator.py`: trzeci przycisk w natywnych powiadomieniach mobile_app,
-  odpowiedź po rezerwacji. Zarezerwuj dotyczy pierwszego wyświetlonego terminu.
+  odpowiedź po rezerwacji. Osobne powiadomienia mobile_app dla maks. 3 nowych terminów per szukajka/poll + podsumowanie bez rezerwacji; unikalne tagi i wynik zastępujący właściwy termin. Opcja konta notification_path otwiera widok HA na Androidzie/iOS, działa bez reloadu.
 - `services.py` / `services.yaml`: `medi_assistant.list_booking_offers`
   oraz `medi_assistant.book_appointment` — przeglądanie terminów i rezerwacja przez akcje HA.
 - `cancellation.py`: lista zaplanowanych wizyt konta i uchwyty `cancellation_id` na 30 minut; ponowna weryfikacja tożsamości wizyty, canCancel i isLateCancellation (późne odwołanie wymaga confirm_late_cancellation), blokada powtórzeń po nieznanym wyniku. Akcje `list_booked_appointments` i `cancel_appointment`; testy `test_cancellation.py` i protokołu w `test_booking_api.py`.
@@ -47,3 +47,5 @@ Przy commicie pomijaj zastaną zmianę `CLAUDE.md`. Stosuj procedurę PR i zielo
 Stały debug integracji i HTTP auth jest ustawiany przez launcher także w istniejącej konfiguracji testowej. Komunikaty integracji pomijają nazwy kont, szukajek i parametry OIDC; regresja logowania sprawdza ukrycie kodu autoryzacyjnego. Filtr sensora w services.yaml musi wskazywać domenę medi_assistant.
 
 Lokalny dashboard Moje wizyty: http://localhost:8123/medi-assistant/wizyty. Utworzony osobno, bez zmiany dotychczasowych widoków; karta sprawdzona w prawdziwej przeglądarce przez interfejs Playwright narzędzia: lista rezerwacji, szukajka i jej terminy, odświeżenie, zwijanie/rozwijanie, otwarcie potwierdzenia zgodnego z wybranym terminem i powrót bez rezerwacji. Przy aktualizacji v2 użyto ?v=2 w adresie dashboardu, bo przeglądarka zachowała HTML ładujący v1. Zapisane testy interakcji obejmują happy-dom i Playwright/Chromium; CI uruchamia oba zestawy. Zakres Chromium to karta z fikcyjnym HA, a nie pełna instalacja HA. Zapisy i błędy rezerwacji/odwołania w karcie zweryfikowane na danych syntetycznych.
+
+- `search_services.py` / `search_config.py`: `get_search_filters` i `create_search`; wspólny zapis danych z config flow, walidacja filtrów i dat, blokada duplikatów per konto. Testy `test_search_services.py`; kontrakt w `docs/BOOKING.md`.

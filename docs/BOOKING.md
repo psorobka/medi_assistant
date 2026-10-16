@@ -76,11 +76,26 @@ referencja: [MediCony](https://github.com/bartekmp/MediCony/blob/main/src/medico
 ## Przycisk w powiadomieniu
 
 W szczegółach szukajki wybierz usługę telefonu `notify.mobile_app_…`.
-Powiadomienie z nowym terminem ma do trzech przycisków: **Zarezerwuj**,
-**Drzemka (24h)** i **Usuń**. „Zarezerwuj” dotyczy pierwszego terminu
-wyświetlonego w wiadomości; terminy są sortowane chronologicznie.
-Kliknięcie rezerwuje wizytę bez otwierania aplikacji. Wynik zastępuje
-powiadomienie i nie zawiera ponownego przycisku rezerwacji.
+Dla maksymalnie trzech najbliższych nowych terminów na szukajkę podczas jednego
+sprawdzenia wysyłane są osobne powiadomienia. Każde zawiera jedną wizytę oraz
+przyciski **Zarezerwuj**, **Wycisz szukajkę (24h)** i **Usuń szukajkę**.
+Przycisk rezerwacji pojawia się tylko dla terminu z aktualnym uchwytem rezerwacji.
+Pozostałe nowe terminy są zgłaszane zbiorczo, bez przycisku rezerwacji.
+Wszystkie wykryte terminy są zapamiętywane; nadmiarowe nie są wysyłane później
+jako kolejna paczka powiadomień.
+
+Kliknięcie **Zarezerwuj** rezerwuje dokładnie tę wizytę bez dodatkowego potwierdzenia.
+Wynik zastępuje powiadomienie wybranego terminu i nie zawiera ponownego przycisku
+rezerwacji. Powiadomienia innych terminów mają osobne identyfikatory.
+Wyciszenie i usunięcie dotyczą całej szukajki.
+
+W opcjach konta ustaw **Widok otwierany z powiadomienia** (`notification_path`),
+np. `/dashboard-zdrowie/medicover`. Względna ścieżka jest przekazywana jako
+`url` dla iOS i `clickAction` dla Androida. Kliknięcie treści powiadomienia,
+podsumowania lub wyniku rezerwacji otwiera ten widok w aplikacji HA.
+Puste pole pozostawia domyślne zachowanie aplikacji; zmiana działa bez restartu.
+Widok z kartą trzeba wcześniej utworzyć we własnym dashboardzie.
+[Dokumentacja Companion](https://companion.home-assistant.io/docs/notifications/notifications-basic/#opening-a-url).
 
 Encje `notify.*` i `notify.persistent_notification` nadal dostają zwykłe
 wiadomości, bez przycisków. Integracja obsługuje powiadomienia opcjonalnie,
@@ -131,3 +146,45 @@ Konfiguracja i sesje pozostają wyłącznie w ignorowanym `.local-ha/config`.
 Zatrzymanie środowiska: `docker stop medicover-ha-local`.
 Zmiany Pythona wymagają restartu kontenera.
 Nie kopiuj konfiguracji `.storage` z produkcyjnego HA.
+
+## Tworzenie szukajek przez chatbot lub automatyzację
+
+Akcje zapisują standardowe subentry konta: szukajka ma sensor, powiadomienia,
+wyniki na karcie i może być edytowana oraz usuwana w konfiguracji integracji.
+Logowanie do konta nadal odbywa się przez config flow.
+
+1. Wywołaj `medi_assistant.get_search_filters` bez parametrów, aby otrzymać
+   listę załadowanych kont (`accounts`, pola `account_id` i `account_name`).
+2. Wywołaj tę samą akcję z `account_id`, aby otrzymać `regions`.
+3. Dodaj `region_id`, aby otrzymać `specialties` dla tego regionu.
+4. Dodaj `specialty_id`, aby otrzymać `clinics` i `doctors`.
+   Listy mają elementy `{id, value}`. `languages` zawiera obsługiwane języki.
+5. Wywołaj `medi_assistant.create_search`:
+
+```yaml
+action: medi_assistant.create_search
+data:
+  account_id: "IDENTYFIKATOR_Z_ODPOWIEDZI"
+  region_id: 204
+  specialty_id: 9
+  date_from: "2026-11-01"
+  date_to: "2026-11-30"
+response_variable: search
+```
+
+Identyfikatory w przykładzie są ilustracyjne; użyj filtrów własnego konta.
+Opcjonalne pola: `clinic_id`, `doctor_id`, `language_id`, `date_from`,
+`date_to`, `notify_target` (lista celów, np. `notify.mobile_app_telefon`).
+Brak dat oznacza domyślny zakres integracji. Brak powiadomień jest dozwolony.
+Nieprawidłowe filtry lub zakres dat powodują błąd bez zapisania szukajki.
+Odpowiedź zawiera `success`, `created`, `account_id`, `search_id`, `title`
+i zapisane `data`. Identyczna szukajka na tym samym koncie jest zwracana
+z `created: false`, także przy równoczesnych ponowieniach. Szukajki różnych
+kont są niezależne. Wyniki pojawią się po odświeżeniu koordynatora;
+można pobrać je przez `list_booking_offers` z `refresh: true`.
+
+Obie akcje wymagają odbioru odpowiedzi. Dla REST użyj
+`POST /api/services/medi_assistant/create_search?return_response` (analogicznie
+`get_search_filters`) z uwierzytelnieniem HA. Samo dodanie akcji nie udostępnia
+jej automatycznie modelowi: po stronie chatbota trzeba zdefiniować narzędzia
+wywołujące te akcje i przekazujące odpowiedzi. Tworzenie szukajki nie rezerwuje wizyty.

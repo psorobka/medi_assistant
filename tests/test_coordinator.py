@@ -287,7 +287,7 @@ async def test_notify_payload_includes_actions(hass, mock_client):
 
     actions = mobile_calls[0].data["data"]["actions"]
     assert "entity_id" not in mobile_calls[0].data
-    assert [a["title"] for a in actions] == ["Drzemka (24h)", "Usuń"]
+    assert [a["title"] for a in actions] == ["Wycisz szukajkę (24h)", "Usuń szukajkę"]
     base = f"{entry.entry_id}__{sub.subentry_id}"
     assert actions[0]["action"] == f"{ACTION_SNOOZE_PREFIX}__{base}"
     assert actions[1]["action"] == f"{ACTION_DELETE_PREFIX}__{base}"
@@ -343,7 +343,7 @@ async def test_notify_action_titles_localized(hass, mock_client):
     await hass.async_block_till_done()
 
     titles = [a["title"] for a in calls[0].data["data"]["actions"]]
-    assert titles == ["Snooze (24h)", "Delete"]
+    assert titles == ["Mute search (24h)", "Delete search"]
 
 
 # ---------------------------------------------------------------------------

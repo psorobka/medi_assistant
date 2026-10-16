@@ -243,10 +243,14 @@ async def test_native_notification_reserves_exact_slot(hass, booking, booking_sl
     await coordinator._async_notify(subentry, "notify.mobile_app_test_phone", [booking_slot])
     await hass.async_block_till_done()
     buttons = calls[0].data["data"]["actions"]
-    assert [button["title"] for button in buttons] == ["Zarezerwuj", "Drzemka (24h)", "Usuń"]
+    assert [button["title"] for button in buttons] == [
+        "Zarezerwuj",
+        "Wycisz szukajkę (24h)",
+        "Usuń szukajkę",
+    ]
     assert "uri" not in buttons[0]
     assert buttons[0]["action"].endswith(offer["booking_id"])
-    assert "pierwszego terminu" in calls[0].data["message"]
+    assert "Nowy termin:" in calls[0].data["message"]
     event = Event("mobile_app_notification_action", {"action": buttons[0]["action"]})
     await coordinator.async_handle_notification_action(event)
     await coordinator.async_handle_notification_action(event)
@@ -381,3 +385,92 @@ async def test_card_manual_refresh_fetches_new_search_results(hass, booking):
     )
     assert response["accounts"][0]["searches"][0]["available"]
     entry.runtime_data.coordinator.async_request_refresh.assert_awaited_once()
+
+
+async def test_mobile_offers_have_exact_handles_unique_tags_and_overflow(
+    hass, booking, booking_slot
+):
+    from homeassistant.core import Event
+    from pytest_homeassistant_custom_component.common import async_mock_service
+    from custom_components.medi_assistant.coordinator import MedicoverCoordinator
+
+    manager, client, entry, subentry, _ = booking
+    hass.config_entries.async_update_entry(
+        entry, options={"notification_path": "/dashboard-health/medicover"}
+    )
+    hass.config_entries.async_update_subentry(
+        entry, subentry, data={**subentry.data, "notify_target": ["notify.mobile_app_test_phone"]}
+    )
+    subentry = entry.subentries[subentry.subentry_id]
+    slots = []
+    for day in range(1, 7):
+        slot = copy.deepcopy(booking_slot)
+        slot["appointmentDate"] = f"2026-11-{day:02d}T10:00:00"
+        slot["bookingString"] = f"synthetic-slot-{day}"
+        slots.append(slot)
+    client.async_find_appointments.return_value = slots
+    calls = async_mock_service(hass, "notify", "mobile_app_test_phone")
+    coordinator = MedicoverCoordinator(hass, entry, client, Mock())
+    coordinator.booking = manager
+    coordinator.async_request_refresh = AsyncMock()
+    await coordinator._async_notify(subentry, "notify.mobile_app_test_phone", list(reversed(slots)))
+    await hass.async_block_till_done()
+    assert len(calls) == 4
+    assert len({call.data["data"]["tag"] for call in calls}) == 4
+    for index, call in enumerate(calls[:3]):
+        data = call.data["data"]
+        assert data["url"] == data["clickAction"] == "/dashboard-health/medicover"
+        assert f"2026-11-{index + 1:02d} 10:00" in call.data["message"]
+        assert f"2026-11-{index + 2:02d} 10:00" not in call.data["message"]
+        handle = data["actions"][0]["action"].split("__")[-1]
+        assert manager._offers[handle].identity[0] == slots[index]["appointmentDate"]
+        assert "bookingString" not in str(call.data)
+    summary = calls[3]
+    assert "Pozostałe nowe terminy: 3" in summary.data["message"]
+    assert not any(
+        action["action"].startswith("MEDI_BOOK__") for action in summary.data["data"]["actions"]
+    )
+    # Select the second notification: the result must replace that notification only.
+    selected = calls[1].data["data"]
+    await coordinator.async_handle_notification_action(
+        Event("mobile_app_notification_action", {"action": selected["actions"][0]["action"]})
+    )
+    await hass.async_block_till_done()
+    client.async_book_appointment.assert_awaited_once_with("synthetic-slot-2")
+    assert calls[-1].data["data"]["tag"] == selected["tag"]
+    assert calls[-1].data["data"]["clickAction"] == selected["clickAction"]
+    assert "actions" not in calls[-1].data["data"]
+
+
+async def test_mobile_unbookable_offer_has_no_booking_action_and_no_default_link(
+    hass, booking, booking_slot
+):
+    from pytest_homeassistant_custom_component.common import async_mock_service
+    from custom_components.medi_assistant.coordinator import MedicoverCoordinator
+
+    _, client, entry, subentry, _ = booking
+    calls = async_mock_service(hass, "notify", "mobile_app_test_phone")
+    slot = {key: value for key, value in booking_slot.items() if key != "bookingString"}
+    coordinator = MedicoverCoordinator(hass, entry, client, Mock())
+    await coordinator._async_notify(subentry, "notify.mobile_app_test_phone", [slot])
+    await coordinator._async_notify(subentry, "notify.mobile_app_test_phone", [slot])
+    await hass.async_block_till_done()
+    data = calls[0].data["data"]
+    assert data["tag"] == calls[1].data["data"]["tag"]
+    assert "url" not in data and "clickAction" not in data
+    assert not any(action["action"].startswith("MEDI_BOOK__") for action in data["actions"])
+
+
+async def test_mobile_notification_failure_is_contained(hass, booking, booking_slot, caplog):
+    from custom_components.medi_assistant.coordinator import MedicoverCoordinator
+
+    _, client, entry, subentry, _ = booking
+    coordinator = MedicoverCoordinator(hass, entry, client, Mock())
+    with patch.object(
+        type(hass.services),
+        "async_call",
+        AsyncMock(side_effect=RuntimeError("private-synthetic-detail")),
+    ):
+        await coordinator._async_notify(subentry, "notify.mobile_app_test_phone", [booking_slot])
+    assert "Notification delivery failed (RuntimeError)" in caplog.text
+    assert "private-synthetic-detail" not in caplog.text

@@ -46,9 +46,16 @@
       "init": {
         "title": "Medicover settings",
         "data": {
-          "scan_interval": "Refresh interval (minutes)"
+          "scan_interval": "Refresh interval (minutes)",
+          "notification_path": "View opened from notifications"
+        },
+        "data_description": {
+          "notification_path": "Optional HA dashboard path, e.g. /dashboard-health/medicover. Leave empty to use the app default."
         }
       }
+    },
+    "error": {
+      "invalid_notification_path": "Enter a relative HA path starting with a single /, without spaces or backslashes."
     }
   },
   "config_subentries": {
@@ -81,13 +88,16 @@
             "notify_target": "Notification (notify entity or service)"
           },
           "data_description": {
-            "notify_target": "Pick your phone (notify.mobile_app_…) to get a push with Snooze/Delete buttons. Add notify.persistent_notification to also keep a sticky entry in the Home Assistant panel (no buttons)."
+            "notify_target": "Choose notify.mobile_app_… for individual appointment notifications with booking actions. Other targets receive a plain list."
           }
         }
       },
       "abort": {
         "cannot_load_filters": "Cannot load region list — refresh account data first",
         "reconfigure_successful": "Search updated"
+      },
+      "error": {
+        "invalid_search": "Check the selected filters and date range."
       }
     }
   },
@@ -102,8 +112,8 @@
     }
   },
   "common": {
-    "action_snooze": "Snooze (24h)",
-    "action_delete": "Delete",
+    "action_snooze": "Mute search (24h)",
+    "action_delete": "Delete search",
     "action_book": "Book"
   },
   "services": {
@@ -152,6 +162,66 @@
         "confirm_late_cancellation": {
           "name": "Confirm late cancellation",
           "description": "Enable after reviewing Medicover late cancellation terms."
+        }
+      }
+    },
+    "get_search_filters": {
+      "name": "Get search filters",
+      "description": "Without parameters returns loaded accounts. Supply an account, then a region and specialty to retrieve dependent filters.",
+      "fields": {
+        "account_id": {
+          "name": "Medi Assistant account",
+          "description": "Account ID returned by get_search_filters."
+        },
+        "region_id": {
+          "name": "Region",
+          "description": "Region ID returned by get_search_filters."
+        },
+        "specialty_id": {
+          "name": "Specialty",
+          "description": "Specialty ID available in the selected region."
+        }
+      }
+    },
+    "create_search": {
+      "name": "Create search",
+      "description": "Creates a search editable in HA configuration. Identical retries return the existing search.",
+      "fields": {
+        "account_id": {
+          "name": "Medi Assistant account",
+          "description": "Account ID returned by get_search_filters."
+        },
+        "region_id": {
+          "name": "Region",
+          "description": "Region ID returned by get_search_filters."
+        },
+        "specialty_id": {
+          "name": "Specialty",
+          "description": "Specialty ID available in the selected region."
+        },
+        "clinic_id": {
+          "name": "Clinic",
+          "description": "Optional clinic ID from the filters."
+        },
+        "doctor_id": {
+          "name": "Doctor",
+          "description": "Optional doctor ID from the filters."
+        },
+        "language_id": {
+          "name": "Language",
+          "description": "4: Polish, 6: English, 60: Ukrainian."
+        },
+        "date_from": {
+          "name": "Start date",
+          "description": "Date in YYYY-MM-DD format."
+        },
+        "date_to": {
+          "name": "End date",
+          "description": "Date in YYYY-MM-DD format."
+        },
+        "notify_target": {
+          "name": "Notification targets",
+          "description": "List of notify targets, as in the search configuration form."
         }
       }
     }
