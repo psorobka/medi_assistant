@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import datetime
 import logging
 from typing import TYPE_CHECKING, Any
 
@@ -41,21 +40,18 @@ from .const import (
     CONF_SPECIALTY_ID,
     CONF_SPECIALTY_NAME,
     CONF_CLINIC_ID,
-    CONF_CLINIC_NAME,
     CONF_DOCTOR_ID,
-    CONF_DOCTOR_NAME,
     CONF_LANGUAGE_ID,
     CONF_DATE_FROM,
     CONF_DATE_TO,
-    CONF_SLOT_SEARCH_TYPE,
     CONF_NOTIFY_TARGET,
     DEFAULT_SCAN_INTERVAL,
-    DEFAULT_SLOT_SEARCH_TYPE,
     DOMAIN,
     LANGUAGES,
     SUBENTRY_TYPE_SEARCH,
 )
 from .exceptions import AuthError, MfaRequired
+from .search_config import _subentry_title, build_search_data
 
 if TYPE_CHECKING:
     pass
@@ -72,35 +68,6 @@ def _personal_full_name(personal: dict[str, Any]) -> str:
 def _personal_unique_id(personal: dict[str, Any], username: str) -> str:
     pid = personal.get("id") or personal.get("patientId") or personal.get("pesel")
     return str(pid) if pid else username.lower()
-
-
-def _subentry_title(data: dict[str, Any]) -> str:
-    parts: list[str] = []
-    if name := data.get(CONF_SPECIALTY_NAME):
-        parts.append(name)
-    if name := data.get(CONF_REGION_NAME):
-        parts.append(name)
-    if date := data.get(CONF_DATE_FROM):
-        try:
-            d = datetime.date.fromisoformat(date)
-            months = [
-                "sty",
-                "lut",
-                "mar",
-                "kwi",
-                "maj",
-                "cze",
-                "lip",
-                "sie",
-                "wrz",
-                "paź",
-                "lis",
-                "gru",
-            ]
-            parts.append(f"od {d.day} {months[d.month - 1]}")
-        except ValueError:
-            pass
-    return " · ".join(parts) if parts else "Szukajka"
 
 
 # ---------------------------------------------------------------------------
@@ -511,29 +478,22 @@ class SearchSubentryFlowHandler(ConfigSubentryFlow):
             clinics = runtime_data.filters_store.get_clinics(region_id, [specialty_id])
             doctors = runtime_data.filters_store.get_doctors(region_id, [specialty_id])
 
+        errors = {}
         if user_input is not None:
-            # Start from existing (reconfigure keeps unrelated keys), apply new.
-            data = dict(self._existing)
-            data.update(self._data)
-            data[CONF_SLOT_SEARCH_TYPE] = DEFAULT_SLOT_SEARCH_TYPE
-
-            _apply_optional_id(data, user_input, CONF_CLINIC_ID, CONF_CLINIC_NAME, clinics)
-            _apply_optional_id(data, user_input, CONF_DOCTOR_ID, CONF_DOCTOR_NAME, doctors)
-            data[CONF_LANGUAGE_ID] = (
-                int(user_input[CONF_LANGUAGE_ID]) if user_input.get(CONF_LANGUAGE_ID) else None
-            )
-            data[CONF_DATE_FROM] = user_input.get(CONF_DATE_FROM) or None
-            data[CONF_DATE_TO] = user_input.get(CONF_DATE_TO) or None
-            data[CONF_NOTIFY_TARGET] = user_input.get(CONF_NOTIFY_TARGET) or None
-            data = {k: v for k, v in data.items() if v is not None}
-
-            title = _subentry_title(data)
-            if self._reconfigure is not None:
-                return self.async_update_and_abort(
-                    entry=entry, subentry=self._reconfigure, title=title, data=data
+            try:
+                data = build_search_data(
+                    {**self._data, **user_input}, runtime_data.filters_store, self._existing
                 )
-            _LOGGER.info("New search configured")
-            return self.async_create_entry(title=title, data=data)
+            except ValueError:
+                errors["base"] = "invalid_search"
+            else:
+                title = _subentry_title(data)
+                if self._reconfigure is not None:
+                    return self.async_update_and_abort(
+                        entry=entry, subentry=self._reconfigure, title=title, data=data
+                    )
+                _LOGGER.info("New search configured")
+                return self.async_create_entry(title=title, data=data)
 
         ex = self._existing
         schema_dict: dict[Any, Any] = {}
@@ -569,7 +529,9 @@ class SearchSubentryFlowHandler(ConfigSubentryFlow):
             )
         )
 
-        return self.async_show_form(step_id="details", data_schema=vol.Schema(schema_dict))
+        return self.async_show_form(
+            step_id="details", data_schema=vol.Schema(schema_dict), errors=errors
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -650,23 +612,6 @@ def _opt_key(
     if valid is not None and not any(str(i.get("id")) == str(val) for i in valid):
         return vol.Optional(key)  # stale id not offered for this region/specialty
     return vol.Optional(key, default=str(val) if stringify or valid is not None else val)
-
-
-def _apply_optional_id(
-    data: dict[str, Any],
-    user_input: dict[str, Any],
-    id_key: str,
-    name_key: str,
-    items: list[dict[str, Any]],
-) -> None:
-    """Set or clear an optional id+name pair from user input."""
-    raw = user_input.get(id_key)
-    if raw:
-        data[id_key] = int(raw)
-        data[name_key] = _find_name(items, int(raw))
-    else:
-        data.pop(id_key, None)
-        data.pop(name_key, None)
 
 
 def _find_name(items: list[dict[str, Any]], item_id: int) -> str:

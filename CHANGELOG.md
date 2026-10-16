@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.2.0 — 2026-10-16
+
+### Added
+
+- Actions get_search_filters and create_search for chatbot and automation access. Searches use the same account subentries, validation and titles as the native configuration flow.
+- Region-scoped filter validation, date range checks and duplicate protection for repeated or concurrent creation requests.
+
 ## 1.1.0 — 2026-10-15
 
 ### Added

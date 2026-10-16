@@ -54,3 +54,73 @@ cancel_appointment:
       default: false
       selector:
         boolean:
+
+get_search_filters:
+  name: Pobierz filtry szukajki
+  description: Bez parametrów zwraca załadowane konta. Podaj konto, następnie region i specjalizację, aby pobrać kolejne filtry.
+  fields:
+    account_id:
+      name: Konto Medi Assistant
+      description: "Identyfikator konta z get_search_filters."
+      required: false
+      selector: {"config_entry": {"integration": "medi_assistant"}}
+    region_id:
+      name: Region
+      description: "Identyfikator regionu z get_search_filters."
+      required: false
+      selector: {"number": {"min": 1, "mode": "box"}}
+    specialty_id:
+      name: Specjalizacja
+      description: "Identyfikator specjalizacji dostępnej w wybranym regionie."
+      required: false
+      selector: {"number": {"min": 1, "mode": "box"}}
+
+create_search:
+  name: Utwórz szukajkę
+  description: Tworzy szukajkę edytowalną w konfiguracji HA. Identyczne ponowienie zwraca istniejącą szukajkę.
+  fields:
+    account_id:
+      name: Konto Medi Assistant
+      description: "Identyfikator konta z get_search_filters."
+      required: true
+      selector: {"config_entry": {"integration": "medi_assistant"}}
+    region_id:
+      name: Region
+      description: "Identyfikator regionu z get_search_filters."
+      required: true
+      selector: {"number": {"min": 1, "mode": "box"}}
+    specialty_id:
+      name: Specjalizacja
+      description: "Identyfikator specjalizacji dostępnej w wybranym regionie."
+      required: true
+      selector: {"number": {"min": 1, "mode": "box"}}
+    clinic_id:
+      name: Placówka
+      description: "Opcjonalny identyfikator placówki z filtrów."
+      required: false
+      selector: {"number": {"min": 1, "mode": "box"}}
+    doctor_id:
+      name: Lekarz
+      description: "Opcjonalny identyfikator lekarza z filtrów."
+      required: false
+      selector: {"number": {"min": 1, "mode": "box"}}
+    language_id:
+      name: Język
+      description: "4: polski, 6: angielski, 60: ukraiński."
+      required: false
+      selector: {"number": {"min": 1, "mode": "box"}}
+    date_from:
+      name: Data początkowa
+      description: "Data w formacie RRRR-MM-DD."
+      required: false
+      selector: {"date": {}}
+    date_to:
+      name: Data końcowa
+      description: "Data w formacie RRRR-MM-DD."
+      required: false
+      selector: {"date": {}}
+    notify_target:
+      name: Powiadomienia
+      description: "Lista celów notify, taka jak w formularzu szukajki."
+      required: false
+      selector: {"object": {}}

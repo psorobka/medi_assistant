@@ -28,6 +28,7 @@ from .const import (
 from .coordinator import MedicoverCoordinator
 from .booking import BookingManager
 from .services import async_setup_booking_service
+from .search_services import async_setup_search_services
 from .frontend import async_setup_card
 from .exceptions import AuthError, InvalidGrant, MfaRequired
 from .store import FiltersStore
@@ -129,6 +130,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: MedicoverConfigEntry) ->
     )
 
     async_setup_booking_service(hass)
+    async_setup_search_services(hass)
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     # Start the keep-alive only after platforms set up — if the forward raised,
