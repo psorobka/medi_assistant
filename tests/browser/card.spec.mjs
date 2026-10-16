@@ -293,3 +293,50 @@ test("delete confirmation remains beside the clicked search on a long card", asy
   expect(attempts(await fixture.snapshot(), "delete_search")).toHaveLength(1);
   await expect(page.getByRole("button", { name: "Odśwież", exact: true })).toBeEnabled();
 });
+
+
+test("opening delete confirmation does not move a scrolled dashboard", async ({ page, fixture }) => {
+  await fixture.open("truncated");
+  // Leave enough content below the card to avoid browser clamping near page bottom.
+  await page.evaluate(() => {
+    const space = document.createElement("div");
+    space.style.height = "2000px";
+    document.body.append(space);
+  });
+  const search = page.locator("details.search").filter({ hasText: "Szukajka Beta" });
+  const button = search.getByRole("button", { name: "Usuń szukajkę", exact: true });
+  await button.scrollIntoViewIfNeeded();
+  await button.evaluate((node) => window.scrollBy(0, node.getBoundingClientRect().top - window.innerHeight + 90));
+  const before = await page.evaluate(() => window.scrollY);
+  expect(before).toBeGreaterThan(500);
+  await button.click();
+  await expect(search.getByRole("region", { name: "Usunąć tę szukajkę?" })).toBeFocused();
+  const after = await page.evaluate(() => window.scrollY);
+  expect(Math.abs(after - before)).toBeLessThanOrEqual(2);
+});
+
+
+test("delete confirmation preserves a nested dashboard scroll container", async ({ page, fixture }) => {
+  await fixture.open("truncated");
+  await page.evaluate(() => {
+    const host = document.querySelector("main");
+    host.style.height = "70vh";
+    host.style.overflowY = "auto";
+    const space = document.createElement("div");
+    space.style.height = "2000px";
+    host.append(space);
+  });
+  const search = page.locator("details.search").filter({ hasText: "Szukajka Beta" });
+  const button = search.getByRole("button", { name: "Usuń szukajkę", exact: true });
+  await button.scrollIntoViewIfNeeded();
+  await button.evaluate((node) => {
+    const host = document.querySelector("main");
+    host.scrollTop += node.getBoundingClientRect().top - host.getBoundingClientRect().bottom + 90;
+  });
+  const before = await page.locator("main").evaluate((node) => node.scrollTop);
+  expect(before).toBeGreaterThan(500);
+  await button.click();
+  await expect(search.getByRole("region", { name: "Usunąć tę szukajkę?" })).toBeFocused();
+  const after = await page.locator("main").evaluate((node) => node.scrollTop);
+  expect(Math.abs(after - before)).toBeLessThanOrEqual(2);
+});

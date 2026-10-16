@@ -7,7 +7,7 @@ from homeassistant.components.http import StaticPathConfig
 from homeassistant.core import HomeAssistant
 
 CARD_PATH = "/medi_assistant/medi-assistant-card.js"
-CARD_URL = CARD_PATH + "?v=1.3.1"
+CARD_URL = CARD_PATH + "?v=1.3.2"
 
 
 async def async_setup_card(hass: HomeAssistant) -> bool:
