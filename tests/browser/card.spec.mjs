@@ -272,3 +272,24 @@ test("non-admin has no search deletion buttons", async ({ page, fixture }) => {
   await fixture.open("normal", false);
   await expect(page.getByRole("button", { name: "Usuń szukajkę", exact: true })).toHaveCount(0);
 });
+
+
+test("delete confirmation remains beside the clicked search on a long card", async ({ page, fixture }) => {
+  await fixture.open("truncated");
+  const search = page.locator("details.search").filter({ hasText: "Szukajka Beta" });
+  await search.getByRole("button", { name: "Usuń szukajkę", exact: true }).click();
+  const panel = search.getByRole("region", { name: "Usunąć tę szukajkę?", exact: true });
+  await expect(panel).toBeInViewport();
+  await expect(panel).toBeFocused();
+  await expect(panel).toContainText("Konto Beta");
+  await expect(panel).toContainText("Szukajka Beta");
+  await expect(panel.getByRole("button", { name: "Usuń szukajkę", exact: true })).toBeInViewport();
+  expect(attempts(await fixture.snapshot(), "delete_search")).toHaveLength(0);
+  await panel.getByRole("button", { name: "Zostaw szukajkę" }).click();
+  await expect(page.getByRole("button", { name: "Odśwież", exact: true })).toBeEnabled();
+  await search.getByRole("button", { name: "Usuń szukajkę", exact: true }).click();
+  await search.getByRole("region", { name: "Usunąć tę szukajkę?" }).getByRole("button", { name: "Usuń szukajkę", exact: true }).click();
+  await expect(search).toHaveCount(0);
+  expect(attempts(await fixture.snapshot(), "delete_search")).toHaveLength(1);
+  await expect(page.getByRole("button", { name: "Odśwież", exact: true })).toBeEnabled();
+});

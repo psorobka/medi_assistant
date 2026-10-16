@@ -273,3 +273,22 @@ test("non-admin cannot select or invoke search deletion", async () => {
   assert.equal(card._selected, undefined);
   assert.equal(calls.filter((call) => call.service === "delete_search").length, 0);
 });
+
+
+test("delete confirmation stays inside the selected search instead of the card top", async () => {
+  const second = { ...searchAccount, account_id: "second-account", account_name: "Second account", searches: [{ ...searchAccount.searches[0], name: "Second search" }] };
+  const { card, calls } = await create([account], undefined, [searchAccount, second]);
+  const searches = card.shadowRoot.querySelectorAll("details.search");
+  searches[1].querySelector(".delete-search").click();
+  const panel = card.shadowRoot.querySelector(".confirmation");
+  const selected = [...card.shadowRoot.querySelectorAll("details.search")][1];
+  assert.equal(panel.parentElement, selected);
+  assert.match(panel.textContent, /Second account/);
+  assert.match(panel.textContent, /Second search/);
+  assert.equal(selected.open, true);
+  assert.equal(card.shadowRoot.querySelector(".body > .confirmation"), null);
+  assert.equal(calls.filter((call) => call.service === "delete_search").length, 0);
+  button(card, "Zostaw szukajkę").click();
+  assert.equal(button(card, "Odśwież").disabled, false);
+  assert.equal(card.shadowRoot.querySelectorAll("details.search").length, 2);
+});

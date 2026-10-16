@@ -53,3 +53,5 @@ Lokalny dashboard Moje wizyty: http://localhost:8123/medi-assistant/wizyty. Utwo
 - Usuwanie szukajki z karty: delete_search (administrator, account_id + search_id), potwierdzenie nazwy/konta, usunięcie stanu powiadomień i subentry bez odwoływania wizyt. Testy Python, DOM i Chromium obejmują uprawnienia, błąd, utratę odpowiedzi i izolację kont.
 
 - `brand/icon.png` i `brand/icon@2x.png`: oryginalna ikona kalendarza z plusem i potwierdzeniem, PNG RGBA 256/512. Lokalne brand images obsługuje HA 2026.3+; testowy HA 2025.12.4 nie wyświetla ich automatycznie. Podgląd w README.
+
+- Potwierdzenie usuwania znajduje się wewnątrz wybranej szukajki; focus i scrollIntoView pokazują je w widoku zamiast na początku długiej karty. Regresje DOM i Chromium sprawdzają długą kartę, konto i ponowne odblokowanie akcji.
