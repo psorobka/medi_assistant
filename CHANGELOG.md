@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.3.2 — 2026-10-16
+
+### Fixed
+
+- Opening search deletion confirmation preserves dashboard scroll position. Keep keyboard focus on the inline confirmation without automatically scrolling page or nested dashboard containers.
+
+
 ## 1.3.1 — 2026-10-16
 
 ### Fixed

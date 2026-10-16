@@ -1,8 +1,8 @@
 # Aktywne repozytorium
 
 Kod źródłowy: `custom_components/medi_assistant/`. Domena: `medi_assistant`.
-Wydanie: 1.3.1. Wersja manifestu, pyproject i cache modułu karty jest kontrolowana przez tests/test_release.py. Procedura PR → zielone CI → merge → tag/release jest w AGENTS.md; historia wydań w CHANGELOG.md.
-Testy przeglądarkowe: `playwright.config.mjs`, `tests/browser/`, opis w `docs/BROWSER_TESTS.md`; `pnpm test:browser`. Kod produktu ma wersję 1.3.1; zmiany samych testów nie wymagają wydania.
+Wydanie: 1.3.2. Wersja manifestu, pyproject i cache modułu karty jest kontrolowana przez tests/test_release.py. Procedura PR → zielone CI → merge → tag/release jest w AGENTS.md; historia wydań w CHANGELOG.md.
+Testy przeglądarkowe: `playwright.config.mjs`, `tests/browser/`, opis w `docs/BROWSER_TESTS.md`; `pnpm test:browser`. Kod produktu ma wersję 1.3.2; zmiany samych testów nie wymagają wydania.
 
 Kopia `C:/Users/Piotr/Claude/Projects/medi_assistant` z domeną `medicover`
 to odrębny, stary prototyp. Nie montuj jej w lokalnym HA ani nie przenoś
@@ -54,4 +54,6 @@ Lokalny dashboard Moje wizyty: http://localhost:8123/medi-assistant/wizyty. Utwo
 
 - `brand/icon.png` i `brand/icon@2x.png`: oryginalna ikona kalendarza z plusem i potwierdzeniem, PNG RGBA 256/512. Lokalne brand images obsługuje HA 2026.3+; testowy HA 2025.12.4 nie wyświetla ich automatycznie. Podgląd w README.
 
-- Potwierdzenie usuwania znajduje się wewnątrz wybranej szukajki; focus i scrollIntoView pokazują je w widoku zamiast na początku długiej karty. Regresje DOM i Chromium sprawdzają długą kartę, konto i ponowne odblokowanie akcji.
+- Potwierdzenie usuwania znajduje się wewnątrz wybranej szukajki; focus z preventScroll utrzymuje pozycję widoku; bez scrollIntoView. Regresje DOM i Chromium sprawdzają długą kartę, konto i ponowne odblokowanie akcji.
+
+- Regresje Chromium sprawdzają brak zmiany scrollY strony i scrollTop zagnieżdżonego dashboardu po otwarciu potwierdzenia, z przyciskiem przy dolnej krawędzi ekranu, desktop i telefon.

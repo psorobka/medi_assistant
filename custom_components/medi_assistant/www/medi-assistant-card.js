@@ -180,7 +180,6 @@ export class MediAssistantAppointments extends HTMLElement {
     this._render();
     const panel = this.shadowRoot.querySelector(".confirmation");
     panel?.focus({ preventScroll: true });
-    panel?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
   }
 
   async _deleteSelected() {

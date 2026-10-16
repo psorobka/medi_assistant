@@ -32,6 +32,8 @@ Każdy test ma odrębną sesję z fikcyjnymi kontami, wizytami i szukajkami.
 - Ręczne odświeżanie, zachowanie zwiniętej szukajki i odzyskanie po błędzie.
 - Skrót Dodaj szukajkę, adres docelowy konfiguracji i ukrycie skrótu
   użytkownikowi bez uprawnień administratora.
+- Potwierdzenie usunięcia przy wybranej szukajce i brak skoku przewijania strony
+  oraz zagnieżdżonego kontenera dashboardu, również przy dolnej krawędzi ekranu.
 - Informacja o ograniczeniu do 20 wyników, brak poziomego przewijania
   oraz renderowanie wartości HTML jako bezpiecznego tekstu.
 
