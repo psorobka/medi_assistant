@@ -427,6 +427,31 @@ async def test_action_for_unknown_subentry_is_ignored(hass, mock_client):
 
 
 @pytest.mark.asyncio
+async def test_ios_notification_tag_fits_apns_collapse_id(hass, mock_client):
+    """A real-sized booking id still produces a tag Apple will accept."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data=MOCK_ENTRY_DATA,
+        title="Jan Kowalski",
+        entry_id="01M6RX6J5PA8D56N9M81N9QW3A",
+        options={"notification_path": "/dashboard-medicover/medicover"},
+    )
+    entry.add_to_hass(hass)
+    coordinator = MedicoverCoordinator(hass, entry, mock_client, _make_filters_store())
+    booking_id = "a" * 32
+
+    first = coordinator._notification_data("01M755BXW7M09MPPJC855XTBFT", booking_id)
+    again = coordinator._notification_data("01M755BXW7M09MPPJC855XTBFT", booking_id)
+    other = coordinator._notification_data("01M755BXW7M09MPPJC855XTBFT", booking_id + "x")
+
+    assert len(first["tag"].encode()) <= 64
+    assert first["tag"] == again["tag"]
+    assert first["tag"] != other["tag"]
+    assert first["url"] == "/dashboard-medicover/medicover"
+    assert first["clickAction"] == "/dashboard-medicover/medicover"
+
+
+@pytest.mark.asyncio
 async def test_malformed_action_is_ignored(hass, mock_client):
     """An action id that doesn't match the expected shape is a no-op."""
     fs = _make_filters_store()

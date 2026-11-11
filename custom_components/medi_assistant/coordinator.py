@@ -213,8 +213,14 @@ class MedicoverCoordinator(DataUpdateCoordinator[dict[str, list[dict[str, Any]]]
             _LOGGER.warning("Notification delivery failed (%s)", type(err).__name__)
 
     def _notification_data(self, subentry_id: str, suffix: str) -> dict[str, Any]:
-        """Opaque per-offer tags; relative paths work on Android and iOS."""
-        data = {"tag": f"medi_booking_{self._entry.entry_id}_{subentry_id}_{suffix}"}
+        """Opaque per-offer tags; relative paths work on Android and iOS.
+
+        iOS uses ``tag`` as the APNs collapse-id, which must be at most 64 bytes.
+        A raw entry id, search id, and booking id together exceed that limit, and
+        Apple rejects the whole push.
+        """
+        raw = f"{self._entry.entry_id}_{subentry_id}_{suffix}"
+        data = {"tag": "medi_" + sha256(raw.encode()).hexdigest()[:32]}
         if path := self._entry.options.get(CONF_NOTIFICATION_PATH):
             data.update(url=path, clickAction=path)
         return data
